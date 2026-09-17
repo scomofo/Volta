@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "VOLTA",
+      "hasCanvas": true,
+      "bodyTextLen": 495,
+      "bodyTextHash": "627dabc15bda5651df8c31d304e3f68d0c4df283174ffeee4668cbe9cd637ddf",
+      "bodyTextPrefix": "SUBTRACTIVE INSTRUMENT VOLTA STANDBY 8 VOICE SCOPE LVL WAVE Sine",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "VOLTA",
+      "hasCanvas": true,
+      "bodyTextLen": 437,
+      "bodyTextHash": "8dcf7fef67b67fb725adf8f1cb86bb5de8db32800b8fb05d3d0bb77737bc46f0",
+      "bodyTextPrefix": "SUBTRACTIVE INSTRUMENT VOLTA STANDBY SCOPE LVL WAVE Sine Tri Saw",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}
