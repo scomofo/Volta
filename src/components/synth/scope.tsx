@@ -30,10 +30,10 @@ export function Scope({ armed }: { armed: boolean }) {
       }
       ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const bg = readToken("--color-bg", "#0a0b0c");
-      const grid = readToken("--color-border", "#2a2c31");
-      const accent = readToken("--color-accent", "#7dcea0");
-      const muted = readToken("--color-subtle", "#5c616a");
+      const bg = readToken("--color-walnut", "#241c16");
+      const grid = readToken("--color-border", "#3a2f26");
+      const accent = readToken("--color-accent", "#c45c32");
+      const muted = readToken("--color-subtle", "#7a6c5e");
 
       ctx2d.fillStyle = bg;
       ctx2d.fillRect(0, 0, width, height);

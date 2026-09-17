@@ -4,20 +4,27 @@
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Bricolage Grotesque", var(--font-sans);
 
-  --color-bg: #0a0b0c;
-  --color-surface: #131416;
-  --color-surface-2: #1b1d21;
-  --color-fg: #e8eaed;
-  --color-muted: #8a8f97;
-  --color-subtle: #5c616a;
-  --color-accent: #7dcea0;
-  --color-border: #2a2c31;
-  --color-border-strong: #3a3d44;
-  --color-key-white: #e8eaed;
-  --color-key-white-fg: #1a1c20;
-  --color-key-black: #1c1e22;
-  --color-key-black-fg: #c5c9d0;
-  --color-key-on: #c8e8d6;
+  --color-bg: #1a1510;
+  --color-walnut: #241c16;
+  --color-surface: #2a211a;
+  --color-surface-2: #322820;
+  --color-fg: #efe6d6;
+  --color-cream: #efe6d6;
+  --color-muted: #a89886;
+  --color-subtle: #7a6c5e;
+  --color-accent: #c45c32;
+  --color-panel: #e7dcc8;
+  --color-panel-fg: #2c241c;
+  --color-panel-muted: #6f6458;
+  --color-border: #3a2f26;
+  --color-border-strong: #4a3d32;
+  --color-key-white: #efe6d6;
+  --color-key-white-fg: #2c241c;
+  --color-key-black: #1c1612;
+  --color-key-black-fg: #d9cbb8;
+  --color-key-on: #e8b49a;
+
+  --text-micro: 0.65rem;
 
   --radius-xs: 0.25rem;
   --radius-sm: 0.5rem;
@@ -25,11 +32,11 @@
   --radius-lg: 1rem;
   --radius-xl: 1.5rem;
 
-  --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-panel: 0 0 0 1px rgba(44, 36, 28, 0.12);
   --shadow-knob:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 8px 16px rgba(0, 0, 0, 0.35);
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 6px 12px rgba(0, 0, 0, 0.28);
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --motion-micro: 80ms;
@@ -52,6 +59,7 @@
     color: var(--color-fg);
     font-family: var(--font-sans);
     overscroll-behavior: none;
+    overflow-x: hidden;
   }
 
   button:not(:disabled),
@@ -72,6 +80,26 @@
 
 .knob {
   box-shadow: var(--shadow-knob);
+}
+
+.knob-filter {
+  background: var(--color-accent);
+  color: var(--color-cream);
+}
+
+.wood-frame {
+  background: var(--color-walnut);
+  padding: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+
+.wood-frame > * {
+  border-radius: 8px;
+}
+
+.silk-rule {
+  width: 1px;
+  background: color-mix(in oklab, var(--color-panel-fg) 16%, transparent);
 }
 
 .shadow-panel {
@@ -116,7 +144,7 @@
 
 .key-black.is-on {
   background: var(--color-accent);
-  color: var(--color-bg);
+  color: var(--color-cream);
   box-shadow: 0 0 16px color-mix(in oklab, var(--color-accent) 45%, transparent);
 }
 

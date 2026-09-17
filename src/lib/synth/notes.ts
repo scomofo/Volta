@@ -1,10 +1,21 @@
-export type Waveform = "sine" | "triangle" | "sawtooth" | "square";
+export type OscWave = "triangle" | "sawtooth" | "square" | "pulse";
 
-export const WAVEFORMS: { id: Waveform; label: string }[] = [
-  { id: "sine", label: "Sine" },
+export const OSC_WAVES: { id: OscWave; label: string }[] = [
   { id: "triangle", label: "Tri" },
   { id: "sawtooth", label: "Saw" },
   { id: "square", label: "Square" },
+  { id: "pulse", label: "Pulse" },
+];
+
+export type Footage = "32" | "16" | "8" | "4" | "2" | "LO";
+
+export const FOOTAGES: { id: Footage; label: string; ratio: number }[] = [
+  { id: "32", label: "32′", ratio: 0.25 },
+  { id: "16", label: "16′", ratio: 0.5 },
+  { id: "8", label: "8′", ratio: 1 },
+  { id: "4", label: "4′", ratio: 2 },
+  { id: "2", label: "2′", ratio: 4 },
+  { id: "LO", label: "LO", ratio: 0 },
 ];
 
 export const NOTE_NAMES = [
@@ -149,4 +160,15 @@ export function formatMs(seconds: number): string {
 
 export function formatPct(t: number): string {
   return `${Math.round(t * 100)}%`;
+}
+
+export function formatTune(t: number): string {
+  const st = (t - 0.5) * 14;
+  if (Math.abs(st) < 0.05) return "0.0";
+  return `${st > 0 ? "+" : ""}${st.toFixed(1)}`;
+}
+
+export function footageRatio(footage: Footage): number {
+  const found = FOOTAGES.find((f) => f.id === footage);
+  return found && found.ratio > 0 ? found.ratio : 1;
 }

@@ -36,7 +36,7 @@ export function LevelMeter({ armed }: { armed: boolean }) {
 
   return (
     <div className="flex h-full min-h-[7.5rem] flex-col items-center gap-2">
-      <span className="font-sans text-[0.65rem] font-medium uppercase tracking-[0.16em] text-muted">
+      <span className="font-sans text-micro font-medium uppercase tracking-[0.16em] text-muted">
         Lvl
       </span>
       <div

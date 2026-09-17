@@ -11,6 +11,7 @@ type KnobProps = {
   onChange: (value: number) => void;
   defaultValue?: number;
   disabled?: boolean;
+  tone?: "default" | "filter";
 };
 
 export function Knob({
@@ -20,6 +21,7 @@ export function Knob({
   onChange,
   defaultValue = 0.5,
   disabled = false,
+  tone = "default",
 }: KnobProps) {
   const id = useId();
   const drag = useRef<{ y: number; value: number } | null>(null);
@@ -39,7 +41,7 @@ export function Knob({
   const onPointerMove = useCallback(
     (event: PointerEvent<HTMLButtonElement>) => {
       if (!drag.current) return;
-      const range = 140;
+      const range = 130;
       const fine = event.shiftKey ? 0.35 : 1;
       const next = drag.current.value + ((drag.current.y - event.clientY) / range) * fine;
       onChange(Math.min(1, Math.max(0, next)));
@@ -72,7 +74,7 @@ export function Knob({
   );
 
   return (
-    <div className="flex w-16 flex-col items-center gap-1.5 sm:w-[4.5rem]">
+    <div className="flex w-14 flex-col items-center gap-1 sm:w-16">
       <button
         id={id}
         type="button"
@@ -90,8 +92,8 @@ export function Knob({
         onDoubleClick={() => onChange(defaultValue)}
         onKeyDown={onKeyDown}
         className={cn(
-          "knob relative size-14 touch-none rounded-full sm:size-16",
-          "bg-surface-2 text-fg",
+          "knob relative size-12 touch-none rounded-full sm:size-14",
+          tone === "filter" ? "knob-filter" : "bg-walnut text-cream",
           "transition-[box-shadow,transform] duration-(--motion-quick) ease-(--ease-out)",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70",
           "active:scale-[0.98]",
@@ -100,23 +102,31 @@ export function Knob({
       >
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-[18%] rounded-full bg-surface"
+          className={cn(
+            "pointer-events-none absolute inset-[20%] rounded-full",
+            tone === "filter" ? "bg-accent/30" : "bg-panel/15",
+          )}
         />
         <span
           aria-hidden
           className="pointer-events-none absolute inset-0 origin-center"
           style={{ transform: `rotate(${angle}deg)` }}
         >
-          <span className="absolute left-1/2 top-[7%] h-[26%] w-[2px] -translate-x-1/2 rounded-full bg-accent" />
+          <span
+            className={cn(
+              "absolute left-1/2 top-[8%] h-[24%] w-0.5 -translate-x-1/2 rounded-full",
+              tone === "filter" ? "bg-cream" : "bg-accent",
+            )}
+          />
         </span>
       </button>
       <label
         htmlFor={id}
-        className="font-sans text-[0.65rem] font-medium uppercase tracking-[0.14em] text-muted"
+        className="text-center font-sans text-micro font-medium uppercase tracking-[0.12em] text-panel-muted"
       >
         {label}
       </label>
-      <span className="font-sans text-xs tabular-nums text-fg">{display}</span>
+      <span className="font-sans text-xs tabular-nums text-panel-fg">{display}</span>
     </div>
   );
 }

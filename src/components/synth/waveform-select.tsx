@@ -1,22 +1,23 @@
 import { cn } from "@/lib/utils";
-import { WAVEFORMS, type Waveform } from "@/lib/synth/notes";
+import { OSC_WAVES, type OscWave } from "@/lib/synth/notes";
 
 type WaveformSelectProps = {
-  value: Waveform;
-  onChange: (wave: Waveform) => void;
+  value: OscWave;
+  onChange: (wave: OscWave) => void;
+  label?: string;
 };
 
-function WaveIcon({ id }: { id: Waveform }) {
+function WaveIcon({ id }: { id: OscWave }) {
   const d =
-    id === "sine"
-      ? "M2 12c3-8 5 8 8 0s5 8 8 0"
-      : id === "triangle"
-        ? "M2 16 L8 8 L14 16 L20 8"
-        : id === "sawtooth"
-          ? "M3 16 L3 8 L17 16 L17 8"
-          : "M4 16 V8 H11 V16 H18 V8";
+    id === "triangle"
+      ? "M2 16 L8 8 L14 16 L20 8"
+      : id === "sawtooth"
+        ? "M3 16 L3 8 L17 16 L17 8"
+        : id === "square"
+          ? "M4 16 V8 H11 V16 H18 V8"
+          : "M4 16 V8 H7 V16 H20";
   return (
-    <svg viewBox="0 0 22 24" className="size-5" aria-hidden>
+    <svg viewBox="0 0 22 24" className="size-4" aria-hidden>
       <path
         d={d}
         fill="none"
@@ -29,14 +30,10 @@ function WaveIcon({ id }: { id: Waveform }) {
   );
 }
 
-export function WaveformSelect({ value, onChange }: WaveformSelectProps) {
+export function WaveformSelect({ value, onChange, label = "Waveform" }: WaveformSelectProps) {
   return (
-    <div
-      role="radiogroup"
-      aria-label="Waveform"
-      className="flex rounded-lg bg-surface-2 p-1"
-    >
-      {WAVEFORMS.map((wave) => {
+    <div role="radiogroup" aria-label={label} className="flex rounded-md bg-walnut/10 p-0.5">
+      {OSC_WAVES.map((wave) => {
         const selected = wave.id === value;
         return (
           <button
@@ -47,10 +44,10 @@ export function WaveformSelect({ value, onChange }: WaveformSelectProps) {
             aria-label={wave.label}
             onClick={() => onChange(wave.id)}
             className={cn(
-              "flex min-h-11 min-w-11 flex-1 items-center justify-center rounded-md px-2.5",
-              "text-muted transition-[color,background-color,transform] duration-(--motion-quick) ease-(--ease-out)",
-              "hover:text-fg active:scale-[0.96]",
-              selected && "bg-surface text-accent",
+              "flex min-h-9 min-w-9 flex-1 items-center justify-center rounded-sm px-1.5",
+              "text-panel-muted transition-[color,background-color,transform] duration-(--motion-quick) ease-(--ease-out)",
+              "hover:text-panel-fg active:scale-[0.96]",
+              selected && "bg-walnut text-cream",
             )}
           >
             <WaveIcon id={wave.id} />

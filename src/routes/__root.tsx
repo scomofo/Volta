@@ -11,10 +11,11 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: APP_NAME },
-      { name: "theme-color", content: "#0a0b0c" },
+      { name: "theme-color", content: "#1a1510" },
       {
         name: "description",
-        content: "Playable analog-style synth. On-screen keys, computer mapping, filter, envelope, and scope.",
+        content:
+          "Minimoog-style monophonic ladder synth. Three oscillators, mixer, 24 dB filter, dual envelopes, and a playable keyboard.",
       },
     ],
     links: [
