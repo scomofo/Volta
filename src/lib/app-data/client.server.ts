@@ -278,7 +278,10 @@ function tokenIdentityKey(token: string): string {
             .digest("base64url");
         }
       }
-    } catch {}
+    } catch {
+      // Deliberate no-op: a malformed token must not throw or yield a forged
+      // identity — fall through to the fail-closed raw-token hash below.
+    }
   }
   return createHash("sha256").update(token).digest("base64url");
 }
