@@ -107,7 +107,7 @@ test("platform chrome overwrites share-card metas and always sets og:title", () 
     '<html><head><title>Hello World</title><meta property="og:title" content="Old"><meta name="twitter:card" content="summary"></head></html>';
   const out = injectGrokPwaHead(html, { appName: "Wild Race" });
   assert.match(out, /name="twitter:card" content="summary_large_image"/);
-  assert.match(out, /property="og:title" content="Hello World"/);
+  assert.match(out, /property="og:title" content="VOLTA"/);
   assert.doesNotMatch(out, /content="Old"/);
   assert.doesNotMatch(out, /content="summary"/);
   assert.equal(out.split('name="twitter:card"').length - 1, 1);
@@ -246,6 +246,8 @@ test("site title Grok App is a real name, not a sentinel", () => {
 test("published grok.me slug is still a title fallback", () => {
   const out = injectGrokPwaHead("<html><head></head></html>", {
     host: "wild-race.grok.me",
+    // No baked site.json here: the slug fallback only fires without one.
+    cwd: mkdtempSync(join(tmpdir(), "grok-og-slug-")),
   });
   assert.match(out, /property="og:title" content="Wild Race"/);
 });
@@ -303,9 +305,13 @@ test("vercel Host without a public hostname emits no og:image", () => {
 });
 
 test("emits og:image for a public host and prefers a custom card", () => {
+  // Isolated cwd: the repo's own public/og.jpg must not leak into the
+  // placeholder assertions below.
+  const cwd = mkdtempSync(join(tmpdir(), "grok-og-placeholder-"));
   const placeholder = injectGrokPwaHead("<html><head></head></html>", {
     appName: "Wild Race",
     host: "wild-race.grok.me",
+    cwd,
     site: { title: "Wild Race" },
   });
   assert.match(
@@ -317,6 +323,7 @@ test("emits og:image for a public host and prefers a custom card", () => {
   const custom = injectGrokPwaHead("<html><head></head></html>", {
     appName: "Wild Race",
     host: "wild-race.grok.me",
+    cwd,
     site: { title: "Wild Race", card: "custom", type: "x:game" },
   });
   assert.match(custom, /property="og:image" content="https:\/\/wild-race\.grok\.me\/og\.jpg"/);
@@ -324,8 +331,12 @@ test("emits og:image for a public host and prefers a custom card", () => {
 });
 
 test("placeholder og:image appends site.color when it is 6-digit hex", () => {
+  // Isolated cwd: the repo's own public/og.jpg must not leak into the
+  // placeholder assertions below.
+  const cwd = mkdtempSync(join(tmpdir(), "grok-og-color-"));
   const themed = injectGrokPwaHead("<html><head></head></html>", {
     host: "wild-race.grok.me",
+    cwd,
     site: { title: "Wild Race", color: "#FF4D2E" },
   });
   assert.match(
@@ -335,12 +346,14 @@ test("placeholder og:image appends site.color when it is 6-digit hex", () => {
 
   const invalid = injectGrokPwaHead("<html><head></head></html>", {
     host: "wild-race.grok.me",
+    cwd,
     site: { title: "Wild Race", color: "red" },
   });
   assert.doesNotMatch(invalid, /color=/);
 
   const custom = injectGrokPwaHead("<html><head></head></html>", {
     host: "wild-race.grok.me",
+    cwd,
     site: { title: "Wild Race", card: "custom", color: "FF4D2E" },
   });
   assert.doesNotMatch(custom, /color=/);
@@ -349,6 +362,8 @@ test("placeholder og:image appends site.color when it is 6-digit hex", () => {
 test("document title entities are not double-escaped on og:title", () => {
   const out = injectGrokPwaHead(
     "<html><head><title>Cats &amp; Dogs</title></head></html>",
+    // No baked site.json here: this test is about the document-title path.
+    { cwd: mkdtempSync(join(tmpdir(), "grok-og-entities-")) },
   );
   assert.match(out, /property="og:title" content="Cats &amp; Dogs"/);
   assert.doesNotMatch(out, /Cats &amp;amp; Dogs/);
@@ -363,7 +378,11 @@ test("site.json title wins over the host slug", () => {
 });
 
 test("injects into documents with no head element", () => {
-  const out = injectGrokPwaHead("<html><body>hi</body></html>", { appName: "Solo" });
+  const out = injectGrokPwaHead("<html><body>hi</body></html>", {
+    appName: "Solo",
+    // No baked site.json here: this test is about the appName fallback.
+    cwd: mkdtempSync(join(tmpdir(), "grok-og-nohead-")),
+  });
   assert.match(out, /<head>/);
   assert.match(out, /property="og:title" content="Solo"/);
   assert.match(out, /<\/head>/);
@@ -376,7 +395,8 @@ test("streaming injector matches </HEAD> case-insensitively", () => {
     ...injector.push("AD><body>hello</body></html>"),
   ];
   const out = Buffer.concat(chunks).toString("utf8");
-  assert.match(out, /property="og:title" content="x"/);
+  // The baked site.json identity wins over the document title here.
+  assert.match(out, /property="og:title" content="VOLTA"/);
   assert.match(out, /<body>hello<\/body>/);
 });
 
@@ -395,7 +415,11 @@ test("is idempotent", () => {
 });
 
 test("uses the app name in the injected title tag", () => {
-  const out = injectGrokPwaHead("<html><head></head></html>", { appName: "Wild Race" });
+  const out = injectGrokPwaHead("<html><head></head></html>", {
+    appName: "Wild Race",
+    // No baked site.json here: this test is about the appName path.
+    cwd: mkdtempSync(join(tmpdir(), "grok-og-apptitle-")),
+  });
   assert.match(out, /apple-mobile-web-app-title" content="Wild Race"/);
 });
 
