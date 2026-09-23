@@ -4,9 +4,9 @@ import {
   midiToFreq,
   type Footage,
   type OscWave,
-} from "./notes";
+} from "./notes.ts";
 
-const LADDER_WORKLET = `
+export const LADDER_WORKLET = `
 class MoogLadderProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
@@ -29,7 +29,7 @@ class MoogLadderProcessor extends AudioWorkletProcessor {
     const n = out.length;
     const cut = parameters.cutoff;
     const resArr = parameters.resonance;
-    const res = (resArr.length === 1 ? resArr[0] : resArr[0]) || 0.3;
+    const res = resArr[0] ?? 0.3;
     const k = res * 4.2;
     const sr = sampleRate;
     for (let i = 0; i < n; i++) {
