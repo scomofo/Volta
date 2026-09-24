@@ -5,6 +5,7 @@ import {
   type Footage,
   type OscWave,
 } from "./notes";
+import { SWARM_WORKLET, couplingRate } from "./swarm";
 
 const LADDER_WORKLET = `
 class MoogLadderProcessor extends AudioWorkletProcessor {
@@ -71,6 +72,8 @@ export type SynthParams = {
   mix2: number;
   mix3: number;
   mixNoise: number;
+  swarm: number;
+  swarmLock: number;
   cutoff: number;
   emphasis: number;
   contour: number;
@@ -103,6 +106,8 @@ export const DEFAULT_PARAMS: SynthParams = {
   mix2: 0.62,
   mix3: 0.42,
   mixNoise: 0,
+  swarm: 0,
+  swarmLock: 0.5,
   cutoff: 0.58,
   emphasis: 0.32,
   contour: 0.55,
@@ -199,6 +204,8 @@ export class SynthEngine {
   private master: GainNode | null = null;
   private compressor: DynamicsCompressorNode | null = null;
   private ladderWorklet: AudioWorkletNode | null = null;
+  private swarmWorklet: AudioWorkletNode | null = null;
+  private swarmGain: GainNode | null = null;
   private biquads: BiquadFilterNode[] = [];
   private shaper: WaveShaperNode | null = null;
   private cutoffTargets: AudioParam[] = [];
@@ -216,6 +223,7 @@ export class SynthEngine {
   private envOpen = false;
   private lastMidi = 60;
   private workletReady = false;
+  private swarmReady = false;
 
   get armed(): boolean {
     return this.ctx !== null && this.ctx.state !== "closed";
@@ -228,6 +236,7 @@ export class SynthEngine {
       this.ctx = createAudioContext();
       this.buildGraph();
       void this.upgradeLadder();
+      void this.upgradeSwarm();
     }
     if (this.ctx.state === "suspended") {
       void this.ctx.resume();
@@ -358,6 +367,10 @@ export class SynthEngine {
     this.noiseGain.connect(this.mixer);
     this.noise.start();
 
+    this.swarmGain = ctx.createGain();
+    this.swarmGain.gain.value = 0;
+    this.swarmGain.connect(this.mixer);
+
     this.dc = ctx.createConstantSource();
     this.dc.offset.value = 1;
     this.filterEnv = ctx.createGain();
@@ -430,6 +443,30 @@ export class SynthEngine {
     }
   }
 
+  private async upgradeSwarm(): Promise<void> {
+    const ctx = this.ctx;
+    if (!ctx || this.swarmReady) return;
+    try {
+      const url = URL.createObjectURL(new Blob([SWARM_WORKLET], { type: "application/javascript" }));
+      await ctx.audioWorklet.addModule(url);
+      URL.revokeObjectURL(url);
+      if (this.ctx !== ctx || !this.swarmGain || !this.mixer) return;
+
+      const node = new AudioWorkletNode(ctx, "swarm-osc", {
+        numberOfInputs: 0,
+        numberOfOutputs: 1,
+        outputChannelCount: [1],
+      });
+      node.connect(this.swarmGain);
+      this.swarmWorklet = node;
+      this.swarmReady = true;
+      this.applyLiveParams();
+      this.setPitch(this.lastMidi, false);
+    } catch {
+      this.swarmReady = false;
+    }
+  }
+
   private connectToCutoff(source: GainNode | null): void {
     if (!source) return;
     for (const param of this.cutoffTargets) {
@@ -463,6 +500,12 @@ export class SynthEngine {
     this.setMix(this.oscGains[1], p.mix2 ** 2 * 0.42);
     this.setMix(this.oscGains[2], p.mix3 ** 2 * 0.38);
     this.setMix(this.noiseGain, p.mixNoise ** 2 * 0.28);
+    this.setMix(this.swarmGain, p.swarm ** 2 * 0.5);
+
+    if (this.swarmWorklet) {
+      const lock = this.swarmWorklet.parameters.get("lock");
+      lock?.setTargetAtTime(couplingRate(p.swarmLock), now, 0.02);
+    }
 
     if (this.master) {
       this.master.gain.setTargetAtTime(p.volume ** 2 * 0.5, now, 0.03);
@@ -538,6 +581,14 @@ export class SynthEngine {
       const freq = this.oscFreq(i, midi);
       if (tau > 0) osc.frequency.setTargetAtTime(freq, now, tau);
       else osc.frequency.setValueAtTime(freq, now);
+    }
+    if (this.swarmWorklet) {
+      const swarmFreq = this.swarmWorklet.parameters.get("freq");
+      const hz = this.oscFreq(0, midi);
+      if (swarmFreq) {
+        if (tau > 0) swarmFreq.setTargetAtTime(hz, now, tau);
+        else swarmFreq.setValueAtTime(hz, now);
+      }
     }
     this.setCutoff(this.trackedCutoff(), now, 0.02);
   }
