@@ -2,6 +2,15 @@ import { Minus, Plus } from "lucide-react";
 import type { ComponentProps } from "react";
 import { attackSec, cutoffHz, decaySec, DEFAULT_PARAMS, glideSec } from "@/lib/synth/engine";
 import {
+  ARP_OCTAVES_MAX,
+  ARP_OCTAVES_MIN,
+  ARP_PATTERNS,
+  ARP_RATE_DEFAULT,
+  bpmToRate,
+  rateToBpm,
+  type ArpPattern,
+} from "@/lib/synth/arp";
+import {
   formatHz,
   formatMs,
   formatPct,
@@ -123,6 +132,39 @@ function MidiLearnHint() {
   );
 }
 
+function ArpPatternSelect({
+  value,
+  onChange,
+}: {
+  value: ArpPattern;
+  onChange: (pattern: ArpPattern) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label="Arp pattern" className="grid grid-cols-2 gap-1">
+      {ARP_PATTERNS.map((pattern) => {
+        const selected = pattern.id === value;
+        return (
+          <button
+            key={pattern.id}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(pattern.id)}
+            className={cn(
+              "min-h-9 rounded-md px-1 text-micro font-medium uppercase tracking-[0.1em]",
+              "transition-[background-color,color,transform] duration-(--motion-quick) ease-(--ease-out)",
+              "hover:text-panel-fg active:scale-[0.96]",
+              selected ? "bg-walnut text-cream" : "bg-walnut/10 text-panel-muted",
+            )}
+          >
+            {pattern.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function VoltaApp() {
   const armed = useSynthStore((s) => s.armed);
   const octave = useSynthStore((s) => s.octave);
@@ -132,7 +174,12 @@ export function VoltaApp() {
   const s = useSynthStore();
 
   const lowest = midiToName(48 + octave * 12);
-  const current = held.length ? midiToName(held[held.length - 1]!) : "—";
+  const current =
+    s.arp && s.arpNote != null
+      ? midiToName(s.arpNote)
+      : held.length
+        ? midiToName(held[held.length - 1]!.midi)
+        : "—";
 
   return (
     <main
@@ -269,6 +316,45 @@ export function VoltaApp() {
                   pressed={s.a440}
                   onPressedChange={(a440) => patch({ a440 })}
                 />
+                <div className="border-t border-walnut/25 pt-3">
+                  <Rocker label="Arp" pressed={s.arp} onPressedChange={s.toggleArp} />
+                </div>
+                <ArpPatternSelect value={s.arpPattern} onChange={s.setArpPattern} />
+                <div className="flex justify-center gap-1">
+                  <Knob
+                    label="Rate"
+                    value={bpmToRate(s.arpRate)}
+                    display={`${s.arpRate} BPM`}
+                    onChange={(t) => s.setArpRate(rateToBpm(t))}
+                    defaultValue={bpmToRate(ARP_RATE_DEFAULT)}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-md bg-walnut/10 px-2 py-1.5">
+                  <span className="text-micro font-medium uppercase tracking-[0.1em] text-panel-muted">
+                    Oct
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      aria-label="Fewer arp octaves"
+                      onClick={() => s.setArpOctaves(Math.max(ARP_OCTAVES_MIN, s.arpOctaves - 1))}
+                      className="flex size-7 items-center justify-center rounded-sm text-panel-muted transition-colors hover:text-panel-fg active:scale-[0.96]"
+                    >
+                      <Minus className="size-3" strokeWidth={2} />
+                    </button>
+                    <span className="min-w-4 text-center text-sm font-medium tabular-nums text-panel-fg">
+                      {s.arpOctaves}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="More arp octaves"
+                      onClick={() => s.setArpOctaves(Math.min(ARP_OCTAVES_MAX, s.arpOctaves + 1))}
+                      className="flex size-7 items-center justify-center rounded-sm text-panel-muted transition-colors hover:text-panel-fg active:scale-[0.96]"
+                    >
+                      <Plus className="size-3" strokeWidth={2} />
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="silk-rule hidden self-stretch sm:block" />
@@ -529,7 +615,8 @@ export function VoltaApp() {
             Three free-running oscillators feed a 24 dB ladder. Add pitch motion with
             the LFO controls. Computer keys Z–M and Q–I (hold Shift for accent); [ and ]
             shift octave; Esc silences. MIDI keyboards play with real velocity — press
-            the MIDI button to map knobs to your controller.
+            the MIDI button to map knobs to your controller. Flip the Arp rocker to
+            arpeggiate held notes in the chosen pattern, rate and octave range.
           </p>
 
           <ArmGate />

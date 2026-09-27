@@ -93,7 +93,7 @@ export function Keyboard() {
       aria-label="Piano keyboard"
     >
       {whites.map((key) => {
-        const on = held.includes(key.midi);
+        const on = held.some((h) => h.midi === key.midi);
         return (
           <button
             key={key.midi}
@@ -119,7 +119,7 @@ export function Keyboard() {
         const whitesBefore = whites.filter((w) => w.offset < key.offset).length;
         const left = (whitesBefore / whites.length) * 100;
         const width = (1 / whites.length) * 100 * 0.62;
-        const on = held.includes(key.midi);
+        const on = held.some((h) => h.midi === key.midi);
         return (
           <button
             key={key.midi}
