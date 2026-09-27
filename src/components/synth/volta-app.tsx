@@ -30,6 +30,7 @@ import { Keyboard } from "./keyboard";
 import { Knob } from "./knob";
 import { LevelMeter } from "./level-meter";
 import { MidiInput } from "./midi-input";
+import { RecordButton } from "./record-button";
 import { Rocker } from "./rocker";
 import { Scope } from "./scope";
 import { WaveformSelect } from "./waveform-select";
@@ -213,6 +214,7 @@ export function VoltaApp() {
               Last note · 3 VCO
             </span>
             <MidiLearnButton />
+            <RecordButton />
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
