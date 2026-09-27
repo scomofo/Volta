@@ -47,3 +47,29 @@ migration step skips cleanly (the PGlite fallback migrates itself).
 
 `.github/workflows/ci.yml` runs install, tests, lint, typecheck, and the
 production build on pushes to `main`/`scout/**` and on pull requests.
+
+It also runs the patch-bank acceptance suite against the production build in
+Chromium and retains screenshots and a JSON verdict as the `patch-bank-browser`
+Actions artifact. To run the same check locally:
+
+```sh
+npx playwright install chromium
+npm run build
+npm run preview:restart
+npm run test:browser
+```
+
+The suite drives keyboard save/export/import/load controls, validates the actual
+download and saved slot contents, checks rejection/cancellation and simulated
+storage failure, reloads the bank, and measures the real Web Audio analyser after
+loading each imported sound. It also covers the stale USER selection regression:
+replacing a bank leaves a previously loaded USER sound playing as Manual until
+another patch is loaded; factory preset identity is preserved. Native confirmation responses are supplied through Playwright's
+dialog API. This is automated browser acceptance, not a listening or screen-reader
+audition.
+
+Use `npm run test:browser -- http://127.0.0.1:8085/` for the dev server.
+`BROWSER_EXECUTABLE_PATH` selects an existing Chromium executable, and
+`BROWSER_EVIDENCE_DIR` selects the evidence folder (default `screenshots/patch-bank`).
+Unavailable external fonts/host chrome are reported separately; application
+errors and same-origin failures still fail the check.

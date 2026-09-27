@@ -19,3 +19,16 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Verify patch banks in production Chromium
+        run: |
+          npm run preview:restart
+          npm run test:browser
+      - name: Save browser acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: patch-bank-browser
+          path: screenshots/patch-bank/
+          if-no-files-found: ignore
+          retention-days: 7
