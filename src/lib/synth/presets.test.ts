@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { copySynthParams, isSynthParams, type PatchStorage, readUserPatches, writeUserPatch } from "./patch-storage.ts";
+import { copySynthParams, isSynthParams, parseUserPatchFile, serializeUserPatchFile, type PatchStorage, readUserPatches, writeUserPatch, writeUserPatches } from "./patch-storage.ts";
 import type { SynthParams } from "./engine.ts";
 import { formatVibratoRate, vibratoGainHz, vibratoRateHz } from "./modulation.ts";
 
@@ -85,4 +85,42 @@ test("invalid saved data is ignored without exposing a broken patch", () => {
     setItem: () => undefined,
   };
   assert.deepEqual(readUserPatches(broken), [null, null, null, null]);
+});
+
+test("user patch banks export and import as a validated portable file", () => {
+  const patches = [validPatch(), null, { ...validPatch(), cutoff: 0.24 }, null];
+  const serialized = serializeUserPatchFile(patches);
+
+  assert.ok(serialized);
+  assert.deepEqual(parseUserPatchFile(serialized), patches);
+  assert.equal(parseUserPatchFile("{broken"), null);
+  assert.equal(parseUserPatchFile(" ".repeat(65_537)), null);
+  assert.equal(
+    parseUserPatchFile(JSON.stringify({ format: "other-app", version: 1, slots: patches })),
+    null,
+  );
+  assert.equal(
+    parseUserPatchFile(
+      JSON.stringify({
+        format: "volta-user-patches",
+        version: 1,
+        slots: [validPatch(), { ...validPatch(), cutoff: Number.NaN }, null, null],
+      }),
+    ),
+    null,
+  );
+});
+
+test("import replaces the full saved bank only after every slot validates", () => {
+  const storage = memoryStorage();
+  const original = validPatch();
+  const replacement = [null, { ...validPatch(), cutoff: 0.24 }, null, null];
+
+  assert.equal(writeUserPatch(0, original, storage), true);
+  assert.equal(writeUserPatches(replacement, storage), true);
+  assert.deepEqual(readUserPatches(storage), replacement);
+
+  const broken = [validPatch(), {}, null, null];
+  assert.equal(writeUserPatches(broken, storage), false);
+  assert.deepEqual(readUserPatches(storage), replacement);
 });
