@@ -72,9 +72,10 @@ export function readUserPatches(
     const data: unknown = JSON.parse(raw);
     if (typeof data !== "object" || data === null || Array.isArray(data)) return emptyUserPatches();
     const record = data as Record<string, unknown>;
-    if (record.version !== 1 || !Array.isArray(record.slots)) return emptyUserPatches();
+    const slots = record.slots;
+    if (record.version !== 1 || !Array.isArray(slots)) return emptyUserPatches();
     return Array.from({ length: USER_PATCH_COUNT }, (_, index) => {
-      const patch = record.slots[index];
+      const patch = slots[index];
       return isSynthParams(patch) ? copySynthParams(patch) : null;
     });
   } catch {
