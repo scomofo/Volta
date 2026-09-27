@@ -10,6 +10,9 @@ import {
 } from "./notes";
 import { SWARM_WORKLET, couplingRate } from "./swarm";
 import { LADDER_WORKLET } from "./ladder-worklet";
+import { TAP_WORKLET } from "./tap-worklet";
+import { TakeRecorder } from "./recorder";
+import { encodeWav } from "./wav";
 import { vibratoGainHz, vibratoRateHz } from "./modulation";
 
 
@@ -192,6 +195,9 @@ export class SynthEngine {
   private velCutoffHz = 0;
   private workletReady = false;
   private swarmReady = false;
+  private tapNode: AudioWorkletNode | null = null;
+  private take: TakeRecorder | null = null;
+  private takePatchName = "";
 
   get armed(): boolean {
     return this.ctx !== null && this.ctx.state !== "closed";
@@ -265,6 +271,98 @@ export class SynthEngine {
       sum += v * v;
     }
     return Math.sqrt(sum / data.length);
+  }
+
+  /**
+   * True while the tap is capturing. Note: after the length cap trips the
+   * tap disconnects but the finished take is still held for stopRecording().
+   */
+  get recording(): boolean {
+    return this.tapNode !== null;
+  }
+
+  recordedSeconds(): number {
+    return this.take?.recordedSeconds ?? 0;
+  }
+
+  /**
+   * Capture the master output as 16-bit PCM. Tap point is after the
+   * analyser (post master-volume, post compressor): what you hear is what
+   * gets recorded. Recording survives patch changes; the filename uses the
+   * patch name from when recording started. Takes auto-stop at 5:00.
+   * Must run inside a user-gesture call stack.
+   */
+  async startRecording(patchName: string): Promise<boolean> {
+    this.arm();
+    const ctx = this.ctx;
+    if (!ctx || !this.analyser || this.tapNode || this.take) return false;
+    let node: AudioWorkletNode;
+    try {
+      const url = URL.createObjectURL(new Blob([TAP_WORKLET], { type: "application/javascript" }));
+      await ctx.audioWorklet.addModule(url);
+      URL.revokeObjectURL(url);
+      node = new AudioWorkletNode(ctx, "volta-tap", {
+        numberOfInputs: 1,
+        numberOfOutputs: 0,
+      });
+    } catch {
+      return false;
+    }
+    if (this.ctx !== ctx || !this.analyser || this.tapNode || this.take) return false;
+    const take = new TakeRecorder(ctx.sampleRate);
+    node.port.onmessage = (event: MessageEvent) => {
+      const active = this.take;
+      if (!active || active !== take) return;
+      const chans = (event.data?.channels ?? []) as Float32Array[];
+      active.push(chans);
+      if (active.capped) this.disconnectTap();
+    };
+    this.analyser.connect(node);
+    this.tapNode = node;
+    this.take = take;
+    this.takePatchName = patchName;
+    return true;
+  }
+
+  /**
+   * Stop the tap and encode the take as a 16-bit WAV. Returns null when
+   * nothing was recording or the take was too short to keep.
+   */
+  stopRecording(): {
+    wav: ArrayBuffer;
+    patchName: string;
+    seconds: number;
+    capped: boolean;
+  } | null {
+    const take = this.take;
+    this.disconnectTap();
+    this.take = null;
+    if (!take) return null;
+    const pcm = take.finish();
+    if (!pcm) return null;
+    return {
+      wav: encodeWav(pcm),
+      patchName: this.takePatchName,
+      seconds: take.recordedSeconds,
+      capped: take.capped,
+    };
+  }
+
+  /** Stop the tap and throw the take away. */
+  cancelRecording(): void {
+    this.disconnectTap();
+    this.take = null;
+  }
+
+  private disconnectTap(): void {
+    if (this.tapNode) {
+      try {
+        this.tapNode.disconnect();
+      } catch {
+        /* already disconnected */
+      }
+      this.tapNode = null;
+    }
   }
 
   private buildGraph(): void {
