@@ -48,5 +48,8 @@ jobs:
         run: |
           node --check web/app.js
           node --check web/recorder.js
+          node --check web/hardware.js
+      - name: Check MIDI and audio device handling
+        run: npm run test:hardware
       - name: Check interface behavior without neural models
         run: npm run test:dom
