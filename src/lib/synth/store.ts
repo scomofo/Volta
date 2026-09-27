@@ -46,6 +46,8 @@ export const useSynthStore = create<SynthStore>((set) => ({
       mix2: s.mix2,
       mix3: s.mix3,
       mixNoise: s.mixNoise,
+      swarm: s.swarm,
+      swarmLock: s.swarmLock,
       cutoff: s.cutoff,
       emphasis: s.emphasis,
       contour: s.contour,

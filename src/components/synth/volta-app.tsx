@@ -223,6 +223,31 @@ export function VoltaApp() {
               <div className="silk-rule hidden self-stretch sm:block" />
 
               <div className="flex shrink-0 flex-col gap-3">
+                {silk("Swarm")}
+                <div className="flex justify-center gap-1">
+                  <Knob
+                    label="Swarm"
+                    value={s.swarm}
+                    display={formatPct(s.swarm)}
+                    onChange={(swarm) => patch({ swarm })}
+                    defaultValue={DEFAULT_PARAMS.swarm}
+                  />
+                  <Knob
+                    label="Lock"
+                    value={s.swarmLock}
+                    display={formatPct(s.swarmLock)}
+                    onChange={(swarmLock) => patch({ swarmLock })}
+                    defaultValue={DEFAULT_PARAMS.swarmLock}
+                  />
+                </div>
+                <p className="text-center text-micro uppercase tracking-[0.16em] text-panel-muted">
+                  Osc drift → lock
+                </p>
+              </div>
+
+              <div className="silk-rule hidden self-stretch sm:block" />
+
+              <div className="flex shrink-0 flex-col gap-3">
                 {silk("Modifiers")}
                 <div className="flex justify-center gap-1">
                   <Knob
