@@ -12,6 +12,28 @@ zero the engine behaves exactly as before. The Record button in the header
 bounces a take to a 16-bit WAV file (`volta-<patch>-<timestamp>.wav`): it
 captures the master output exactly as heard, up to a 5:00 limit.
 
+## Cantabile vocal companion
+
+The [Cantabile prototype](tools/cantabile/README.md) adds a separate local choir
+and vocal editor: 20 recorded singers, editable voice baselines, solo/ensemble
+parts, syllable sequencing, microphone/WAV input and render-first pitch correction.
+It runs with Python on your computer; it is not a route in the hosted Volta app.
+Volta's browser synth and Cantabile produce separate WAV files for arranging in a
+DAW or sampler. This version does not route audio or MIDI between the two apps.
+
+On Windows, open `tools/cantabile`, run `setup-bank-only-windows.bat`, then
+`start-windows.bat`. The recorded vowel bank is included. For voices that sing
+provided lyrics, run `setup-voices-windows.bat` afterwards (about 1.1 GB download).
+The [third-party terms](tools/cantabile/THIRD_PARTY.md) distinguish the attributed
+CC BY 4.0 sample bank from the separately downloaded neural dependencies, which
+include noncommercial restrictions.
+
+Cantabile has its own [checks and limitations](tools/cantabile/VERIFICATION.md)
+and CI workflow. No model weights, microphone imports or render caches are
+committed. The sample bank uses 20 compressed singer bundles. Windows setup unpacks them
+locally; on other systems run `python prepare_bank.py` in `tools/cantabile`
+before starting the app or loading the SFZ files.
+
 ## Stack
 
 - [TanStack Start](https://tanstack.com/start) (React 19, Vite 8, file-based routes)
