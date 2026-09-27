@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { Save } from "lucide-react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { Download, Save, Upload } from "lucide-react";
 import { FACTORY_PRESETS } from "@/lib/synth/presets";
-import { copySynthParams, emptyUserPatches, readUserPatches, USER_PATCH_COUNT, writeUserPatch } from "@/lib/synth/patch-storage";
+import { copySynthParams, emptyUserPatches, parseUserPatchFile, readUserPatches, serializeUserPatchFile, USER_PATCH_COUNT, writeUserPatch, writeUserPatches } from "@/lib/synth/patch-storage";
 import { useSynthStore } from "@/lib/synth/store";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ export function PatchShelf() {
   const applyPreset = useSynthStore((s) => s.applyPreset);
   const [userPatches, setUserPatches] = useState(emptyUserPatches);
   const [notice, setNotice] = useState("");
+  const importInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setUserPatches(readUserPatches());
@@ -24,6 +25,65 @@ export function PatchShelf() {
     setUserPatches(readUserPatches());
     applyPreset(params, "USER " + (index + 1));
     setNotice("Saved as USER " + (index + 1) + " on this device.");
+  };
+
+  const exportBank = () => {
+    const content = serializeUserPatchFile(userPatches);
+    if (!content) {
+      setNotice("The saved patch bank could not be exported.");
+      return;
+    }
+
+    try {
+      const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "volta-user-patches.json";
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      setNotice("Patch bank exported.");
+    } catch {
+      setNotice("This browser could not export the patch bank.");
+    }
+  };
+
+  const importBank = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    if (file.size > 65_536) {
+      setNotice("That file is too large to be a Volta patch bank.");
+      return;
+    }
+
+    try {
+      const patches = parseUserPatchFile(await file.text());
+      if (!patches) {
+        setNotice("That file is not a valid Volta patch bank.");
+        return;
+      }
+
+      const count = patches.filter(Boolean).length;
+      const patchLabel = count === 1 ? "patch" : "patches";
+      if (
+        !window.confirm(
+          "Import " + count + " user " + patchLabel + " and replace all four saved slots on this device?",
+        )
+      ) {
+        setNotice("Patch import cancelled.");
+        return;
+      }
+      if (!writeUserPatches(patches)) {
+        setNotice("This browser could not save the imported patch bank.");
+        return;
+      }
+
+      setUserPatches(patches);
+      setNotice("Imported " + count + " user " + patchLabel + ".");
+    } catch {
+      setNotice("This browser could not read that patch file.");
+    }
   };
 
   return (
@@ -108,6 +168,34 @@ export function PatchShelf() {
               </div>
             );
           })}
+        </div>
+        <div className="mt-2 flex flex-wrap justify-end gap-1.5">
+          <button
+            type="button"
+            disabled={!userPatches.some(Boolean)}
+            onClick={exportBank}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-sm border border-border-strong px-3 text-xs font-medium text-fg transition-colors duration-(--motion-quick) hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download aria-hidden="true" className="size-4" strokeWidth={1.8} />
+            Export bank
+          </button>
+          <button
+            type="button"
+            onClick={() => importInput.current?.click()}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-sm border border-border-strong px-3 text-xs font-medium text-fg transition-colors duration-(--motion-quick) hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
+          >
+            <Upload aria-hidden="true" className="size-4" strokeWidth={1.8} />
+            Import bank
+          </button>
+          <input
+            ref={importInput}
+            type="file"
+            accept=".json,application/json"
+            aria-label="Choose a Volta patch bank file"
+            tabIndex={-1}
+            className="sr-only"
+            onChange={importBank}
+          />
         </div>
         <p aria-live="polite" role="status" className="mt-1 min-h-4 text-xs text-muted">
           {notice}
