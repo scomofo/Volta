@@ -80,6 +80,11 @@ export function PatchShelf() {
       }
 
       setUserPatches(patches);
+      const currentPatch = useSynthStore.getState().activePatch;
+      if (patches.some((_, index) => currentPatch === "USER " + (index + 1))) {
+        // The current sound still plays, but no longer identifies a saved slot.
+        useSynthStore.setState({ activePatch: "Manual" });
+      }
       setNotice("Imported " + count + " user " + patchLabel + ".");
     } catch {
       setNotice("This browser could not read that patch file.");
