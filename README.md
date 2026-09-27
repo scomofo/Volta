@@ -4,7 +4,11 @@ A Minimoog-style monophonic analog synthesizer web app. Three VCOs
 (triangle/saw/square/pulse, 32′–2′ footage + LO) plus noise run through a Moog
 ladder filter implemented as an `AudioWorkletProcessor`, with ADSR envelopes,
 glide, a zustand-driven control surface, a live oscilloscope and level meter,
-and both an on-screen keyboard and computer-keyboard play.
+and both an on-screen keyboard and computer-keyboard play. Web MIDI input is
+supported: MIDI keyboards play with real velocity, and any knob can be mapped
+to a MIDI CC via the MIDI learn button. The Velocity knob (Loudness section)
+scales how much note velocity opens the amplitude and the filter cutoff; at
+zero the engine behaves exactly as before.
 
 ## Stack
 

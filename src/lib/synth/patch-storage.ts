@@ -11,7 +11,7 @@ const PARAMETER_KEYS: readonly (keyof SynthParams)[] = [
   "mix1", "mix2", "mix3", "mixNoise", "swarm", "swarmLock",
   "cutoff", "emphasis", "contour", "filterAttack", "filterDecay",
   "filterSustain", "filterTrack", "ampAttack", "ampDecay", "ampSustain",
-  "glide", "vibratoRate", "vibratoDepth", "pitchMod", "filterMod", "volume",
+  "glide", "vibratoRate", "vibratoDepth", "pitchMod", "filterMod", "velocity", "volume",
   "tune", "a440",
 ];
 
@@ -19,8 +19,11 @@ const NUMERIC_KEYS: readonly (keyof SynthParams)[] = [
   "osc2Tune", "osc3Tune", "mix1", "mix2", "mix3", "mixNoise", "swarm",
   "swarmLock", "cutoff", "emphasis", "contour", "filterAttack", "filterDecay",
   "filterSustain", "filterTrack", "ampAttack", "ampDecay", "ampSustain",
-  "glide", "vibratoRate", "vibratoDepth", "pitchMod", "filterMod", "volume", "tune",
+  "glide", "vibratoRate", "vibratoDepth", "pitchMod", "filterMod", "velocity", "volume", "tune",
 ];
+
+/** Numeric params a MIDI CC can be learned to. */
+export const LEARNABLE_KEYS: readonly (keyof SynthParams)[] = NUMERIC_KEYS;
 
 export type PatchStorage = Pick<Storage, "getItem" | "setItem">;
 
@@ -29,7 +32,11 @@ export function emptyUserPatches(): Array<SynthParams | null> {
 }
 
 export function copySynthParams(params: SynthParams): SynthParams {
-  const entries = PARAMETER_KEYS.map((key) => [key, params[key]] as const);
+  const entries = PARAMETER_KEYS.map((key) => {
+    // Patches saved before velocity existed load as 0 = legacy behavior.
+    const value = key === "velocity" && params[key] === undefined ? 0 : params[key];
+    return [key, value] as const;
+  });
   return Object.fromEntries(entries) as unknown as SynthParams;
 }
 
@@ -40,6 +47,8 @@ export function isSynthParams(value: unknown): value is SynthParams {
   const footages = ["32", "16", "8", "4", "2", "LO"];
   for (const key of NUMERIC_KEYS) {
     const parameter = candidate[key];
+    // velocity is optional: patches saved before it existed stay valid.
+    if (key === "velocity" && parameter === undefined) continue;
     if (typeof parameter !== "number" || !Number.isFinite(parameter) || parameter < 0 || parameter > 1) {
       return false;
     }

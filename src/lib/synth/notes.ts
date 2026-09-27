@@ -146,6 +146,30 @@ export function expMap(t: number, min: number, max: number): number {
   return min * (max / min) ** x;
 }
 
+/** Normalize a MIDI velocity (1..127) to 0..1. Velocity 0 is note-off and never reaches here. */
+export function velocityNorm(velocity: number): number {
+  return Math.min(1, Math.max(0.008, velocity / 127));
+}
+
+/**
+ * Amplitude-envelope peak for a note at normalized velocity `vel` (0..1).
+ * `amount` is the panel Velocity knob. amount = 0 returns exactly 1, so
+ * legacy patches sound bit-identical with the knob at zero.
+ */
+export function velocityAmpPeak(vel: number, amount: number): number {
+  if (amount <= 0) return 1;
+  return Math.max(0.0007, 1 - amount * (1 - vel ** 1.5));
+}
+
+/**
+ * Extra filter cutoff (Hz) a note's velocity opens. amount = 0 returns
+ * exactly 0 (legacy behavior).
+ */
+export function velocityCutoffHz(vel: number, amount: number): number {
+  if (amount <= 0) return 0;
+  return amount * vel ** 1.2 * 4200;
+}
+
 export function formatHz(hz: number): string {
   if (hz >= 1000) return `${(hz / 1000).toFixed(hz >= 10000 ? 1 : 2)}k`;
   return `${Math.round(hz)}Hz`;

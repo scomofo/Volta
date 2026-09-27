@@ -48,7 +48,8 @@ export function ComputerKeys() {
       if (event.repeat || downMidi.has(event.code)) return;
       const midi = displayedMidi(octave, offset);
       downMidi.set(event.code, midi);
-      noteOn(midi);
+      // Shift plays an accented note (velocity 127); otherwise a firm 100.
+      noteOn(midi, event.shiftKey ? 127 : 100);
     };
 
     const onUp = (event: KeyboardEvent) => {

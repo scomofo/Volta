@@ -2,6 +2,9 @@ import {
   expMap,
   footageRatio,
   midiToFreq,
+  velocityAmpPeak,
+  velocityCutoffHz,
+  velocityNorm,
   type Footage,
   type OscWave,
 } from "./notes";
@@ -43,6 +46,8 @@ export type SynthParams = {
   vibratoDepth: number;
   pitchMod: number;
   filterMod: number;
+  /** Velocity amount 0..1. 0 = off: notes behave exactly as before (legacy). */
+  velocity: number;
   volume: number;
   tune: number;
   a440: boolean;
@@ -79,6 +84,7 @@ export const DEFAULT_PARAMS: SynthParams = {
   vibratoDepth: 0,
   pitchMod: 0,
   filterMod: 0,
+  velocity: 0,
   volume: 0.72,
   tune: 0.5,
   a440: false,
@@ -182,6 +188,8 @@ export class SynthEngine {
   private stack: number[] = [];
   private envOpen = false;
   private lastMidi = 60;
+  private lastVelocity = 1;
+  private velCutoffHz = 0;
   private workletReady = false;
   private swarmReady = false;
 
@@ -219,12 +227,14 @@ export class SynthEngine {
     this.applyLiveParams();
   }
 
-  noteOn(midi: number): void {
+  noteOn(midi: number, velocity = 100): void {
     this.arm();
     if (!this.ctx) return;
     this.stack = this.stack.filter((m) => m !== midi);
     const legato = this.stack.length > 0 && this.envOpen;
     this.stack.push(midi);
+    this.lastVelocity = velocityNorm(velocity);
+    this.velCutoffHz = velocityCutoffHz(this.lastVelocity, this.params.velocity);
     this.setPitch(midi, legato);
     if (!legato) this.triggerEnvelopes();
     this.envOpen = true;
@@ -577,7 +587,7 @@ export class SynthEngine {
   private trackedCutoff(): number {
     const base = cutoffHz(this.params.cutoff);
     const track = 2 ** (((this.lastMidi - 60) / 12) * this.params.filterTrack * 0.7);
-    return Math.min(16000, base * track);
+    return Math.min(16000, base * track + this.velCutoffHz);
   }
 
   private setCutoff(hz: number, now: number, tau: number): void {
@@ -598,7 +608,7 @@ export class SynthEngine {
     const amp = this.ampEnv.gain;
     amp.cancelScheduledValues(now);
     amp.setValueAtTime(0.0001, now);
-    amp.linearRampToValueAtTime(1, now + aA);
+    amp.linearRampToValueAtTime(velocityAmpPeak(this.lastVelocity, p.velocity), now + aA);
     amp.linearRampToValueAtTime(Math.max(0.0001, p.ampSustain), now + aA + aD);
 
     const filt = this.filterEnv.gain;

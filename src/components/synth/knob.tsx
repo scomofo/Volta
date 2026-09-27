@@ -12,6 +12,16 @@ type KnobProps = {
   defaultValue?: number;
   disabled?: boolean;
   tone?: "default" | "filter";
+  /** Stable param key for MIDI learn. When absent the knob is not learnable. */
+  paramKey?: string;
+  /** When true, clicking selects this knob as the MIDI-learn target instead of dragging. */
+  learnMode?: boolean;
+  /** This knob is the current learn target, waiting for a CC. */
+  learnTarget?: boolean;
+  /** CC number currently bound to this knob, if any. */
+  boundCc?: number | null;
+  onLearnSelect?: (paramKey: string) => void;
+  onUnlearn?: (paramKey: string) => void;
 };
 
 export function Knob({
@@ -22,20 +32,27 @@ export function Knob({
   defaultValue = 0.5,
   disabled = false,
   tone = "default",
+  paramKey,
+  learnMode = false,
+  learnTarget = false,
+  boundCc = null,
+  onLearnSelect,
+  onUnlearn,
 }: KnobProps) {
   const id = useId();
   const drag = useRef<{ y: number; value: number } | null>(null);
   const t = Math.min(1, Math.max(0, value));
   const angle = MIN_ANGLE + t * (MAX_ANGLE - MIN_ANGLE);
+  const learnable = paramKey != null;
 
   const onPointerDown = useCallback(
     (event: PointerEvent<HTMLButtonElement>) => {
-      if (disabled) return;
+      if (disabled || learnMode) return;
       event.preventDefault();
       event.currentTarget.setPointerCapture(event.pointerId);
       drag.current = { y: event.clientY, value: t };
     },
-    [disabled, t],
+    [disabled, learnMode, t],
   );
 
   const onPointerMove = useCallback(
@@ -79,17 +96,33 @@ export function Knob({
         id={id}
         type="button"
         disabled={disabled}
-        aria-label={`${label} ${display}`}
+        aria-label={`${label} ${display}${boundCc != null ? `, MIDI CC ${boundCc}` : ""}${learnTarget ? ", waiting for MIDI CC" : ""}`}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(t * 100)}
         aria-valuetext={display}
         role="slider"
+        title={
+          boundCc != null
+            ? `MIDI CC ${boundCc} — right-click to unlearn`
+            : learnMode && learnable
+              ? "Click to MIDI-learn this knob"
+              : undefined
+        }
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onDoubleClick={() => onChange(defaultValue)}
+        onClick={() => {
+          if (learnMode && learnable) onLearnSelect?.(paramKey);
+        }}
+        onContextMenu={(event) => {
+          if (boundCc != null && learnable) {
+            event.preventDefault();
+            onUnlearn?.(paramKey);
+          }
+        }}
         onKeyDown={onKeyDown}
         className={cn(
           "knob relative size-12 touch-none rounded-full",
@@ -97,6 +130,8 @@ export function Knob({
           "transition-[box-shadow,transform] duration-(--motion-quick) ease-(--ease-out)",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70",
           "active:scale-[0.98]",
+          learnMode && learnable && "cursor-crosshair",
+          learnTarget && "animate-pulse ring-2 ring-accent ring-offset-2 ring-offset-panel",
           disabled && "pointer-events-none opacity-50",
         )}
       >
@@ -127,6 +162,12 @@ export function Knob({
         {label}
       </label>
       <span className="font-sans text-xs tabular-nums text-panel-fg">{display}</span>
+      <span
+        aria-hidden
+        className="h-3 font-sans text-[0.6rem] font-medium uppercase tracking-[0.08em] text-accent/90"
+      >
+        {learnTarget ? "listening…" : boundCc != null ? `CC ${boundCc}` : ""}
+      </span>
     </div>
   );
 }
