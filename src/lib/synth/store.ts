@@ -6,10 +6,12 @@ type SynthStore = SynthParams & {
   armed: boolean;
   octave: number;
   held: number[];
+  activePatch: string;
   arm: () => void;
   noteOn: (midi: number) => void;
   noteOff: (midi: number) => void;
   patch: (partial: Partial<SynthParams>) => void;
+  applyPreset: (params: SynthParams, label: string) => void;
   shiftOctave: (delta: number) => void;
   panic: () => void;
 };
@@ -26,6 +28,7 @@ export const useSynthStore = create<SynthStore>((set) => ({
   armed: false,
   octave: 0,
   held: [],
+  activePatch: "Classic Saw",
   ...DEFAULT_PARAMS,
 
   arm: () => {
@@ -59,6 +62,8 @@ export const useSynthStore = create<SynthStore>((set) => ({
       ampDecay: s.ampDecay,
       ampSustain: s.ampSustain,
       glide: s.glide,
+      vibratoRate: s.vibratoRate,
+      vibratoDepth: s.vibratoDepth,
       pitchMod: s.pitchMod,
       filterMod: s.filterMod,
       volume: s.volume,
@@ -85,7 +90,12 @@ export const useSynthStore = create<SynthStore>((set) => ({
 
   patch: (partial) => {
     getEngine().setParams(partial);
-    set(partial);
+    set({ ...partial, activePatch: "Manual" });
+  },
+
+  applyPreset: (params, label) => {
+    getEngine().setParams(params);
+    set({ ...params, activePatch: label });
   },
 
   shiftOctave: (delta) => {

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { LADDER_WORKLET } from "./engine.ts";
+import { LADDER_WORKLET } from "./ladder-worklet.ts";
 
 // --- Minimal AudioWorklet shims so the worklet source runs under Node ---
 const registered = new Map<string, any>();

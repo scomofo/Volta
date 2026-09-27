@@ -9,9 +9,11 @@ import {
   type Footage,
   type OscWave,
 } from "@/lib/synth/notes";
+import { formatVibratoRate } from "@/lib/synth/modulation";
 import { useSynthStore } from "@/lib/synth/store";
 import { cn } from "@/lib/utils";
 import { ArmGate } from "./arm-gate";
+import { PatchShelf } from "./patch-shelf";
 import { ComputerKeys } from "./computer-keys";
 import { FootageSelect } from "./footage-select";
 import { Keyboard } from "./keyboard";
@@ -99,6 +101,8 @@ export function VoltaApp() {
         </header>
 
         <section className="relative flex min-w-0 flex-1 flex-col gap-3">
+          <PatchShelf />
+
           <div className="wood-frame min-w-0">
             <div className="overflow-x-auto overscroll-x-contain bg-panel text-panel-fg">
               <div className="flex w-max gap-1.5 p-3">
@@ -134,6 +138,22 @@ export function VoltaApp() {
                     display={formatPct(s.filterMod)}
                     onChange={(filterMod) => patch({ filterMod })}
                     defaultValue={DEFAULT_PARAMS.filterMod}
+                  />
+                </div>
+                <div className="flex justify-center gap-1">
+                  <Knob
+                    label="Vib rate"
+                    value={s.vibratoRate}
+                    display={formatVibratoRate(s.vibratoRate)}
+                    onChange={(vibratoRate) => patch({ vibratoRate })}
+                    defaultValue={DEFAULT_PARAMS.vibratoRate}
+                  />
+                  <Knob
+                    label="Vib depth"
+                    value={s.vibratoDepth}
+                    display={formatPct(s.vibratoDepth)}
+                    onChange={(vibratoDepth) => patch({ vibratoDepth })}
+                    defaultValue={DEFAULT_PARAMS.vibratoDepth}
                   />
                 </div>
                 <Rocker
@@ -378,8 +398,8 @@ export function VoltaApp() {
           </div>
 
           <p className="px-1 text-pretty text-xs leading-relaxed text-muted">
-            Three free-running oscillators into a 24 dB ladder. Last-note mono, decay is
-            release. Computer keys Z–M and Q–I. [ and ] shift octave. Esc silences.
+            Three free-running oscillators feed a 24 dB ladder. Add pitch motion with
+            the LFO controls. Computer keys Z–M and Q–I; [ and ] shift octave; Esc silences.
           </p>
 
           <ArmGate />
