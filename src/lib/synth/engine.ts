@@ -7,13 +7,13 @@ import {
   velocityNorm,
   type Footage,
   type OscWave,
-} from "./notes";
-import { SWARM_WORKLET, couplingRate } from "./swarm";
-import { LADDER_WORKLET } from "./ladder-worklet";
-import { TAP_WORKLET } from "./tap-worklet";
-import { TakeRecorder } from "./recorder";
-import { encodeWav } from "./wav";
-import { vibratoGainHz, vibratoRateHz } from "./modulation";
+} from "./notes.ts";
+import { SWARM_WORKLET, couplingRate } from "./swarm.ts";
+import { LADDER_WORKLET } from "./ladder-worklet.ts";
+import { TAP_WORKLET } from "./tap-worklet.ts";
+import { TakeRecorder } from "./recorder.ts";
+import { encodeWav } from "./wav.ts";
+import { vibratoGainHz, vibratoRateHz } from "./modulation.ts";
 
 
 
@@ -157,6 +157,25 @@ function tuneSemis(t: number): number {
   return (t - 0.5) * 14;
 }
 
+// Processor names live for the AudioContext's lifetime, even after a tap stops.
+// Share in-flight loads as well as successful ones; only failed loads may retry.
+const tapModules = new WeakMap<AudioContext, Promise<void>>();
+
+function loadTapModule(ctx: AudioContext): Promise<void> {
+  const existing = tapModules.get(ctx);
+  if (existing) return existing;
+  const url = URL.createObjectURL(new Blob([TAP_WORKLET], { type: "application/javascript" }));
+  const loading = Promise.resolve()
+    .then(() => ctx.audioWorklet.addModule(url))
+    .catch((error: unknown) => {
+      tapModules.delete(ctx);
+      throw error;
+    })
+    .finally(() => URL.revokeObjectURL(url));
+  tapModules.set(ctx, loading);
+  return loading;
+}
+
 export class SynthEngine {
   ctx: AudioContext | null = null;
   analyser: AnalyserNode | null = null;
@@ -196,6 +215,8 @@ export class SynthEngine {
   private workletReady = false;
   private swarmReady = false;
   private tapNode: AudioWorkletNode | null = null;
+  private tapSource: AnalyserNode | null = null;
+  private tapGeneration = 0;
   private take: TakeRecorder | null = null;
   private takePatchName = "";
 
@@ -295,12 +316,16 @@ export class SynthEngine {
   async startRecording(patchName: string): Promise<boolean> {
     this.arm();
     const ctx = this.ctx;
-    if (!ctx || !this.analyser || this.tapNode || this.take) return false;
+    const source = this.analyser;
+    if (!ctx || !source || this.tapNode || this.take) return false;
+    const generation = this.tapGeneration;
     let node: AudioWorkletNode;
     try {
-      const url = URL.createObjectURL(new Blob([TAP_WORKLET], { type: "application/javascript" }));
-      await ctx.audioWorklet.addModule(url);
-      URL.revokeObjectURL(url);
+      await loadTapModule(ctx);
+      if (
+        this.ctx !== ctx || this.analyser !== source || this.tapNode || this.take ||
+        this.tapGeneration !== generation
+      ) return false;
       node = new AudioWorkletNode(ctx, "volta-tap", {
         numberOfInputs: 1,
         numberOfOutputs: 0,
@@ -308,7 +333,6 @@ export class SynthEngine {
     } catch {
       return false;
     }
-    if (this.ctx !== ctx || !this.analyser || this.tapNode || this.take) return false;
     const take = new TakeRecorder(ctx.sampleRate);
     node.port.onmessage = (event: MessageEvent) => {
       const active = this.take;
@@ -317,8 +341,9 @@ export class SynthEngine {
       active.push(chans);
       if (active.capped) this.disconnectTap();
     };
-    this.analyser.connect(node);
+    source.connect(node);
     this.tapNode = node;
+    this.tapSource = source;
     this.take = take;
     this.takePatchName = patchName;
     return true;
@@ -334,6 +359,7 @@ export class SynthEngine {
     seconds: number;
     capped: boolean;
   } | null {
+    this.tapGeneration++;
     const take = this.take;
     this.disconnectTap();
     this.take = null;
@@ -350,18 +376,28 @@ export class SynthEngine {
 
   /** Stop the tap and throw the take away. */
   cancelRecording(): void {
+    this.tapGeneration++;
     this.disconnectTap();
     this.take = null;
   }
 
   private disconnectTap(): void {
     if (this.tapNode) {
+      // This sink has no outputs: disconnect its incoming edge explicitly.
+      try {
+        this.tapSource?.disconnect(this.tapNode);
+      } catch {
+        /* already disconnected */
+      }
+      this.tapNode.port.onmessage = null;
+      this.tapNode.port.close();
       try {
         this.tapNode.disconnect();
       } catch {
         /* already disconnected */
       }
       this.tapNode = null;
+      this.tapSource = null;
     }
   }
 
