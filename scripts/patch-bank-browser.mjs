@@ -21,6 +21,9 @@ const page = await browser.newPage({
   viewport: { width: 1280, height: 900 },
   acceptDownloads: true,
 });
+// Keep interception enabled before any keyboard gesture. Toggling it for each
+// waitForEvent can race an immediate key press when the picker opens quickly.
+page.on("filechooser", () => {});
 page.on("pageerror", (error) => errors.push(error.message));
 page.on("console", (message) => {
   if (message.type() === "error")
