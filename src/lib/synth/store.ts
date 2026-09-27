@@ -1,12 +1,20 @@
 import { create } from "zustand";
 import { DEFAULT_PARAMS, getEngine, type SynthParams } from "./engine";
+import { ARP_RATE_DEFAULT, arpStepMs, type ArpPattern, type HeldNote } from "./arp";
+import { ArpPlayer } from "./arpPlayer";
 import { loadMidiBindings, saveMidiBindings, type MidiBindings } from "./midi";
 import { OCTAVE_MAX, OCTAVE_MIN } from "./notes";
 
 type SynthStore = SynthParams & {
   armed: boolean;
   octave: number;
-  held: number[];
+  held: HeldNote[];
+  arp: boolean;
+  arpPattern: ArpPattern;
+  arpRate: number;
+  arpOctaves: number;
+  /** Currently sounding arp step, for the Note readout; null when idle. */
+  arpNote: number | null;
   activePatch: string;
   midiSupported: boolean;
   midiInputs: string[];
@@ -16,6 +24,10 @@ type SynthStore = SynthParams & {
   arm: () => void;
   noteOn: (midi: number, velocity?: number) => void;
   noteOff: (midi: number) => void;
+  toggleArp: () => void;
+  setArpPattern: (pattern: ArpPattern) => void;
+  setArpRate: (bpm: number) => void;
+  setArpOctaves: (octaves: number) => void;
   patch: (partial: Partial<SynthParams>) => void;
   applyPreset: (params: SynthParams, label: string) => void;
   shiftOctave: (delta: number) => void;
@@ -28,18 +40,38 @@ type SynthStore = SynthParams & {
   unbindCc: (paramKey: string) => void;
 };
 
-function pushHeld(held: number[], midi: number): number[] {
-  return held.includes(midi) ? held : [...held, midi];
+function pushHeld(held: HeldNote[], midi: number, velocity: number): HeldNote[] {
+  return held.some((h) => h.midi === midi) ? held : [...held, { midi, velocity }];
 }
 
-function dropHeld(held: number[], midi: number): number[] {
-  return held.filter((n) => n !== midi);
+function dropHeld(held: HeldNote[], midi: number): HeldNote[] {
+  return held.filter((h) => h.midi !== midi);
 }
+
+/**
+ * Owns the gate while the arpeggiator runs: user noteOn/noteOff only edit
+ * the held list, and the player retriggers the mono engine each step.
+ * Callbacks run at runtime only, so the store↔player reference is safe.
+ */
+const arpPlayer = new ArpPlayer({
+  play: (midi, velocity) => getEngine().noteOn(midi, velocity),
+  release: (midi) => getEngine().noteOff(midi),
+  getHeld: () => useSynthStore.getState().held,
+  getPattern: () => useSynthStore.getState().arpPattern,
+  getOctaves: () => useSynthStore.getState().arpOctaves,
+  getStepMs: () => arpStepMs(useSynthStore.getState().arpRate),
+  onStep: (midi) => useSynthStore.setState({ arpNote: midi }),
+});
 
 export const useSynthStore = create<SynthStore>((set) => ({
   armed: false,
   octave: 0,
   held: [],
+  arp: false,
+  arpPattern: "up",
+  arpRate: ARP_RATE_DEFAULT,
+  arpOctaves: 1,
+  arpNote: null,
   activePatch: "Classic Saw",
   midiSupported: false,
   midiInputs: [],
@@ -94,17 +126,52 @@ export const useSynthStore = create<SynthStore>((set) => ({
   noteOn: (midi, velocity = 100) => {
     const engine = getEngine();
     engine.arm();
+    const s = useSynthStore.getState();
+    const held = pushHeld(s.held, midi, velocity);
+    if (s.arp) {
+      // The arp owns the gate: just track the held note; the player
+      // retriggers the engine each step.
+      set({ armed: true, held });
+      if (held.length > 0) arpPlayer.start();
+      return;
+    }
     engine.noteOn(midi, velocity);
-    set((s) => ({
-      armed: true,
-      held: pushHeld(s.held, midi),
-    }));
+    set({ armed: true, held });
   },
 
   noteOff: (midi) => {
+    const s = useSynthStore.getState();
+    const held = dropHeld(s.held, midi);
+    if (s.arp) {
+      set({ held });
+      if (held.length === 0) arpPlayer.stop();
+      return;
+    }
     getEngine().noteOff(midi);
-    set((s) => ({ held: dropHeld(s.held, midi) }));
+    set({ held });
   },
+
+  toggleArp: () => {
+    const s = useSynthStore.getState();
+    if (!s.arp) {
+      // Clear any directly-held note so the arp owns the gate from step 0.
+      getEngine().panic();
+      set({ arp: true });
+      if (s.held.length > 0) arpPlayer.start();
+      return;
+    }
+    arpPlayer.stop();
+    set({ arp: false });
+  },
+
+  setArpPattern: (arpPattern) => set({ arpPattern }),
+
+  setArpRate: (arpRate) => {
+    set({ arpRate });
+    arpPlayer.retime();
+  },
+
+  setArpOctaves: (arpOctaves) => set({ arpOctaves }),
 
   patch: (partial) => {
     getEngine().setParams(partial);
@@ -123,6 +190,7 @@ export const useSynthStore = create<SynthStore>((set) => ({
   },
 
   panic: () => {
+    arpPlayer.stop();
     getEngine().panic();
     set({ held: [] });
   },

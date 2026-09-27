@@ -8,7 +8,10 @@ and both an on-screen keyboard and computer-keyboard play. Web MIDI input is
 supported: MIDI keyboards play with real velocity, and any knob can be mapped
 to a MIDI CC via the MIDI learn button. The Velocity knob (Loudness section)
 scales how much note velocity opens the amplitude and the filter cutoff; at
-zero the engine behaves exactly as before.
+zero the engine behaves exactly as before. The Controllers section holds an
+arpeggiator: flip the Arp rocker and held notes cycle in the chosen pattern
+(Up / Down / Up-Dn / Random) at the Rate knob's 16th-note BPM, across 1–3
+octaves, keeping each note's strike velocity.
 
 ## Stack
 
