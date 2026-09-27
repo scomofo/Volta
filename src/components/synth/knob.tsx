@@ -74,7 +74,7 @@ export function Knob({
   );
 
   return (
-    <div className="flex w-14 flex-col items-center gap-1 sm:w-16">
+    <div className="flex w-14 flex-col items-center gap-1">
       <button
         id={id}
         type="button"
@@ -92,7 +92,7 @@ export function Knob({
         onDoubleClick={() => onChange(defaultValue)}
         onKeyDown={onKeyDown}
         className={cn(
-          "knob relative size-12 touch-none rounded-full sm:size-14",
+          "knob relative size-12 touch-none rounded-full",
           tone === "filter" ? "knob-filter" : "bg-walnut text-cream",
           "transition-[box-shadow,transform] duration-(--motion-quick) ease-(--ease-out)",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70",
@@ -122,7 +122,7 @@ export function Knob({
       </button>
       <label
         htmlFor={id}
-        className="text-center font-sans text-micro font-medium uppercase tracking-[0.12em] text-panel-muted"
+        className="text-center font-sans text-micro font-medium uppercase tracking-[0.04em] text-panel-muted"
       >
         {label}
       </label>
