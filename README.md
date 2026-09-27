@@ -8,7 +8,9 @@ and both an on-screen keyboard and computer-keyboard play. Web MIDI input is
 supported: MIDI keyboards play with real velocity, and any knob can be mapped
 to a MIDI CC via the MIDI learn button. The Velocity knob (Loudness section)
 scales how much note velocity opens the amplitude and the filter cutoff; at
-zero the engine behaves exactly as before.
+zero the engine behaves exactly as before. The Record button in the header
+bounces a take to a 16-bit WAV file (`volta-<patch>-<timestamp>.wav`): it
+captures the master output exactly as heard, up to a 5:00 limit.
 
 ## Stack
 
