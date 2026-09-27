@@ -43,5 +43,10 @@ export default tseslint.config(
     },
   },
   // Disable rules that conflict with Prettier formatting.
+  {
+    // Cantabile's Node test harness is intentionally CommonJS.
+    files: ["tools/cantabile/tests/*.cjs"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
   prettier,
 );
