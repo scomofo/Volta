@@ -1,4 +1,5 @@
 import { Minus, Plus } from "lucide-react";
+import type { ComponentProps } from "react";
 import { attackSec, cutoffHz, decaySec, DEFAULT_PARAMS, glideSec } from "@/lib/synth/engine";
 import {
   formatHz,
@@ -19,6 +20,7 @@ import { FootageSelect } from "./footage-select";
 import { Keyboard } from "./keyboard";
 import { Knob } from "./knob";
 import { LevelMeter } from "./level-meter";
+import { MidiInput } from "./midi-input";
 import { Rocker } from "./rocker";
 import { Scope } from "./scope";
 import { WaveformSelect } from "./waveform-select";
@@ -28,6 +30,95 @@ function silk(title: string) {
     <h2 className="font-sans text-micro font-medium uppercase tracking-[0.2em] text-panel-muted">
       {title}
     </h2>
+  );
+}
+
+type LearnKnobProps = Omit<
+  ComponentProps<typeof Knob>,
+  "learnMode" | "learnTarget" | "boundCc" | "onLearnSelect" | "onUnlearn"
+> & { paramKey: string };
+
+/** Knob wired into MIDI-learn: shows bound CC, highlights while learning. */
+function LearnKnob({ paramKey, ...props }: LearnKnobProps) {
+  const learnMode = useSynthStore((s) => s.midiLearn);
+  const learnTarget = useSynthStore((s) => s.learnTarget);
+  const boundCc = useSynthStore((s) => s.bindings[paramKey] ?? null);
+  const setLearnTarget = useSynthStore((s) => s.setLearnTarget);
+  const unbindCc = useSynthStore((s) => s.unbindCc);
+  return (
+    <Knob
+      {...props}
+      paramKey={paramKey}
+      learnMode={learnMode}
+      learnTarget={learnTarget === paramKey}
+      boundCc={boundCc}
+      onLearnSelect={setLearnTarget}
+      onUnlearn={unbindCc}
+    />
+  );
+}
+
+function MidiLearnButton() {
+  const midiSupported = useSynthStore((s) => s.midiSupported);
+  const midiInputs = useSynthStore((s) => s.midiInputs);
+  const midiLearn = useSynthStore((s) => s.midiLearn);
+  const toggleMidiLearn = useSynthStore((s) => s.toggleMidiLearn);
+
+  const label = midiLearn
+    ? "Learning…"
+    : !midiSupported
+      ? "No MIDI"
+      : midiInputs.length > 0
+        ? `MIDI · ${midiInputs.length}`
+        : "MIDI";
+
+  return (
+    <button
+      type="button"
+      onClick={toggleMidiLearn}
+      aria-pressed={midiLearn}
+      title={
+        midiLearn
+          ? "Click a knob, then move a control on your MIDI device. Esc cancels."
+          : "Map knobs to your MIDI controller"
+      }
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full bg-walnut px-3 py-1.5 text-xs font-medium uppercase tracking-[0.14em] transition-colors",
+        midiLearn ? "text-accent" : "text-muted hover:text-fg",
+      )}
+    >
+      <span
+        className={cn(
+          "size-1.5 rounded-full",
+          midiLearn ? "animate-pulse bg-accent" : midiSupported && midiInputs.length > 0 ? "bg-accent" : "bg-subtle",
+        )}
+      />
+      {label}
+    </button>
+  );
+}
+
+function MidiLearnHint() {
+  const midiLearn = useSynthStore((s) => s.midiLearn);
+  const learnTarget = useSynthStore((s) => s.learnTarget);
+  const cancelMidiLearn = useSynthStore((s) => s.cancelMidiLearn);
+  if (!midiLearn) return null;
+  return (
+    <p
+      role="status"
+      className="rounded-md bg-walnut px-3 py-2 text-center text-xs font-medium uppercase tracking-[0.12em] text-accent"
+    >
+      {learnTarget
+        ? "Move a control on your MIDI device to bind it — Esc cancels"
+        : "Click a knob to MIDI-learn it — Esc cancels"}
+      <button
+        type="button"
+        onClick={cancelMidiLearn}
+        className="ml-3 underline underline-offset-2 hover:text-fg"
+      >
+        Cancel
+      </button>
+    </p>
   );
 }
 
@@ -50,6 +141,7 @@ export function VoltaApp() {
       data-octave={octave}
     >
       <ComputerKeys />
+      <MidiInput />
       <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-3 px-3 py-4 sm:gap-4 sm:px-5 sm:py-5">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex flex-col gap-1">
@@ -73,6 +165,7 @@ export function VoltaApp() {
             <span className="hidden text-xs font-medium uppercase tracking-[0.14em] text-muted sm:inline">
               Last note · 3 VCO
             </span>
+            <MidiLearnButton />
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
@@ -100,6 +193,8 @@ export function VoltaApp() {
           </div>
         </header>
 
+        <MidiLearnHint />
+
         <section className="relative flex min-w-0 flex-1 flex-col gap-3">
           <PatchShelf />
 
@@ -109,49 +204,55 @@ export function VoltaApp() {
               <div className="flex w-36 shrink-0 flex-col gap-3">
                 {silk("Controllers")}
                 <div className="flex justify-center gap-1">
-                  <Knob
+                  <LearnKnob
                     label="Tune"
                     value={s.tune}
                     display={formatTune(s.tune)}
+                    paramKey="tune"
                     onChange={(tune) => patch({ tune })}
                     defaultValue={DEFAULT_PARAMS.tune}
                   />
-                  <Knob
+                  <LearnKnob
                     label="Glide"
                     value={s.glide}
                     display={s.glide < 0.02 ? "Off" : formatMs(glideSec(s.glide))}
+                    paramKey="glide"
                     onChange={(glide) => patch({ glide })}
                     defaultValue={DEFAULT_PARAMS.glide}
                   />
                 </div>
                 <div className="flex justify-center gap-1">
-                  <Knob
+                  <LearnKnob
                     label="Pitch mod"
                     value={s.pitchMod}
                     display={formatPct(s.pitchMod)}
+                    paramKey="pitchMod"
                     onChange={(pitchMod) => patch({ pitchMod })}
                     defaultValue={DEFAULT_PARAMS.pitchMod}
                   />
-                  <Knob
+                  <LearnKnob
                     label="Filt mod"
                     value={s.filterMod}
                     display={formatPct(s.filterMod)}
+                    paramKey="filterMod"
                     onChange={(filterMod) => patch({ filterMod })}
                     defaultValue={DEFAULT_PARAMS.filterMod}
                   />
                 </div>
                 <div className="flex justify-center gap-1">
-                  <Knob
+                  <LearnKnob
                     label="Vib rate"
                     value={s.vibratoRate}
                     display={formatVibratoRate(s.vibratoRate)}
+                    paramKey="vibratoRate"
                     onChange={(vibratoRate) => patch({ vibratoRate })}
                     defaultValue={DEFAULT_PARAMS.vibratoRate}
                   />
-                  <Knob
+                  <LearnKnob
                     label="Vib depth"
                     value={s.vibratoDepth}
                     display={formatPct(s.vibratoDepth)}
+                    paramKey="vibratoDepth"
                     onChange={(vibratoDepth) => patch({ vibratoDepth })}
                     defaultValue={DEFAULT_PARAMS.vibratoDepth}
                   />
@@ -207,33 +308,37 @@ export function VoltaApp() {
               <div className="flex shrink-0 flex-col gap-3">
                 {silk("Mixer")}
                 <div className="flex justify-center gap-1">
-                  <Knob
+                  <LearnKnob
                     label="Osc 1"
                     value={s.mix1}
                     display={formatPct(s.mix1)}
+                    paramKey="mix1"
                     onChange={(mix1) => patch({ mix1 })}
                     defaultValue={DEFAULT_PARAMS.mix1}
                   />
-                  <Knob
+                  <LearnKnob
                     label="Osc 2"
                     value={s.mix2}
                     display={formatPct(s.mix2)}
+                    paramKey="mix2"
                     onChange={(mix2) => patch({ mix2 })}
                     defaultValue={DEFAULT_PARAMS.mix2}
                   />
                 </div>
                 <div className="flex justify-center gap-1">
-                  <Knob
+                  <LearnKnob
                     label="Osc 3"
                     value={s.mix3}
                     display={formatPct(s.mix3)}
+                    paramKey="mix3"
                     onChange={(mix3) => patch({ mix3 })}
                     defaultValue={DEFAULT_PARAMS.mix3}
                   />
-                  <Knob
+                  <LearnKnob
                     label="Noise"
                     value={s.mixNoise}
                     display={formatPct(s.mixNoise)}
+                    paramKey="mixNoise"
                     onChange={(mixNoise) => patch({ mixNoise })}
                     defaultValue={DEFAULT_PARAMS.mixNoise}
                   />
@@ -245,17 +350,19 @@ export function VoltaApp() {
               <div className="flex shrink-0 flex-col gap-3">
                 {silk("Swarm")}
                 <div className="flex justify-center gap-1">
-                  <Knob
+                  <LearnKnob
                     label="Swarm"
                     value={s.swarm}
                     display={formatPct(s.swarm)}
+                    paramKey="swarm"
                     onChange={(swarm) => patch({ swarm })}
                     defaultValue={DEFAULT_PARAMS.swarm}
                   />
-                  <Knob
+                  <LearnKnob
                     label="Lock"
                     value={s.swarmLock}
                     display={formatPct(s.swarmLock)}
+                    paramKey="swarmLock"
                     onChange={(swarmLock) => patch({ swarmLock })}
                     defaultValue={DEFAULT_PARAMS.swarmLock}
                   />
@@ -270,26 +377,29 @@ export function VoltaApp() {
               <div className="flex shrink-0 flex-col gap-3">
                 {silk("Modifiers")}
                 <div className="flex justify-center gap-1">
-                  <Knob
+                  <LearnKnob
                     label="Cutoff"
                     value={s.cutoff}
                     display={formatHz(cutoffHz(s.cutoff))}
+                    paramKey="cutoff"
                     onChange={(cutoff) => patch({ cutoff })}
                     defaultValue={DEFAULT_PARAMS.cutoff}
                     tone="filter"
                   />
-                  <Knob
+                  <LearnKnob
                     label="Emphasis"
                     value={s.emphasis}
                     display={formatPct(s.emphasis)}
+                    paramKey="emphasis"
                     onChange={(emphasis) => patch({ emphasis })}
                     defaultValue={DEFAULT_PARAMS.emphasis}
                     tone="filter"
                   />
-                  <Knob
+                  <LearnKnob
                     label="Contour"
                     value={s.contour}
                     display={formatPct(s.contour)}
+                    paramKey="contour"
                     onChange={(contour) => patch({ contour })}
                     defaultValue={DEFAULT_PARAMS.contour}
                     tone="filter"
@@ -299,36 +409,40 @@ export function VoltaApp() {
                   Filter contour
                 </p>
                 <div className="flex justify-center gap-1">
-                  <Knob
+                  <LearnKnob
                     label="Attack"
                     value={s.filterAttack}
                     display={formatMs(attackSec(s.filterAttack))}
+                    paramKey="filterAttack"
                     onChange={(filterAttack) => patch({ filterAttack })}
                     defaultValue={DEFAULT_PARAMS.filterAttack}
                     tone="filter"
                   />
-                  <Knob
+                  <LearnKnob
                     label="Decay"
                     value={s.filterDecay}
                     display={formatMs(decaySec(s.filterDecay))}
+                    paramKey="filterDecay"
                     onChange={(filterDecay) => patch({ filterDecay })}
                     defaultValue={DEFAULT_PARAMS.filterDecay}
                     tone="filter"
                   />
-                  <Knob
+                  <LearnKnob
                     label="Sustain"
                     value={s.filterSustain}
                     display={formatPct(s.filterSustain)}
+                    paramKey="filterSustain"
                     onChange={(filterSustain) => patch({ filterSustain })}
                     defaultValue={DEFAULT_PARAMS.filterSustain}
                     tone="filter"
                   />
                 </div>
-                <Knob
+                <LearnKnob
                   label="Kbd track"
                   value={s.filterTrack}
                   display={formatPct(s.filterTrack)}
-                  onChange={(filterTrack) => patch({ filterTrack })}
+                  paramKey="filterTrack"
+                    onChange={(filterTrack) => patch({ filterTrack })}
                   defaultValue={DEFAULT_PARAMS.filterTrack}
                   tone="filter"
                 />
@@ -342,35 +456,47 @@ export function VoltaApp() {
                   Decay is release
                 </p>
                 <div className="flex justify-center gap-1">
-                  <Knob
+                  <LearnKnob
                     label="Attack"
                     value={s.ampAttack}
                     display={formatMs(attackSec(s.ampAttack))}
+                    paramKey="ampAttack"
                     onChange={(ampAttack) => patch({ ampAttack })}
                     defaultValue={DEFAULT_PARAMS.ampAttack}
                   />
-                  <Knob
+                  <LearnKnob
                     label="Decay"
                     value={s.ampDecay}
                     display={formatMs(decaySec(s.ampDecay))}
+                    paramKey="ampDecay"
                     onChange={(ampDecay) => patch({ ampDecay })}
                     defaultValue={DEFAULT_PARAMS.ampDecay}
                   />
-                  <Knob
+                  <LearnKnob
                     label="Sustain"
                     value={s.ampSustain}
                     display={formatPct(s.ampSustain)}
+                    paramKey="ampSustain"
                     onChange={(ampSustain) => patch({ ampSustain })}
                     defaultValue={DEFAULT_PARAMS.ampSustain}
                   />
                 </div>
                 <div className="flex items-end justify-center gap-3">
-                  <Knob
+                  <LearnKnob
                     label="Volume"
                     value={s.volume}
                     display={formatPct(s.volume)}
+                    paramKey="volume"
                     onChange={(volume) => patch({ volume })}
                     defaultValue={DEFAULT_PARAMS.volume}
+                  />
+                  <LearnKnob
+                    label="Velocity"
+                    value={s.velocity}
+                    display={s.velocity <= 0 ? "Off" : formatPct(s.velocity)}
+                    paramKey="velocity"
+                    onChange={(velocity) => patch({ velocity })}
+                    defaultValue={DEFAULT_PARAMS.velocity}
                   />
                   <div className="flex w-14 flex-col items-center gap-1 pb-1">
                     <span className="font-sans text-micro font-medium uppercase tracking-[0.12em] text-panel-muted">
@@ -399,7 +525,9 @@ export function VoltaApp() {
 
           <p className="px-1 text-pretty text-xs leading-relaxed text-muted">
             Three free-running oscillators feed a 24 dB ladder. Add pitch motion with
-            the LFO controls. Computer keys Z–M and Q–I; [ and ] shift octave; Esc silences.
+            the LFO controls. Computer keys Z–M and Q–I (hold Shift for accent); [ and ]
+            shift octave; Esc silences. MIDI keyboards play with real velocity — press
+            the MIDI button to map knobs to your controller.
           </p>
 
           <ArmGate />
@@ -436,7 +564,8 @@ function OscColumn({
       <FootageSelect value={footage} onChange={onFootage} allowLo={allowLo} label={`${title} range`} />
       <WaveformSelect value={wave} onChange={onWave} label={`${title} waveform`} />
       {onTune != null && tune != null ? (
-        <Knob
+        <LearnKnob
+          paramKey={title === "Osc 2" ? "osc2Tune" : "osc3Tune"}
           label="Freq"
           value={tune}
           display={formatTune(tune)}
@@ -444,7 +573,7 @@ function OscColumn({
           defaultValue={title === "Osc 2" ? DEFAULT_PARAMS.osc2Tune : DEFAULT_PARAMS.osc3Tune}
         />
       ) : (
-        <div className="h-[5.75rem]" />
+        <div className="h-[6.75rem]" />
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { DEFAULT_PARAMS, getEngine, type SynthParams } from "./engine";
+import { loadMidiBindings, saveMidiBindings, type MidiBindings } from "./midi";
 import { OCTAVE_MAX, OCTAVE_MIN } from "./notes";
 
 type SynthStore = SynthParams & {
@@ -7,13 +8,24 @@ type SynthStore = SynthParams & {
   octave: number;
   held: number[];
   activePatch: string;
+  midiSupported: boolean;
+  midiInputs: string[];
+  midiLearn: boolean;
+  learnTarget: string | null;
+  bindings: MidiBindings;
   arm: () => void;
-  noteOn: (midi: number) => void;
+  noteOn: (midi: number, velocity?: number) => void;
   noteOff: (midi: number) => void;
   patch: (partial: Partial<SynthParams>) => void;
   applyPreset: (params: SynthParams, label: string) => void;
   shiftOctave: (delta: number) => void;
   panic: () => void;
+  setMidiStatus: (supported: boolean, inputs: string[]) => void;
+  toggleMidiLearn: () => void;
+  setLearnTarget: (paramKey: string) => void;
+  cancelMidiLearn: () => void;
+  applyCc: (cc: number, value: number) => void;
+  unbindCc: (paramKey: string) => void;
 };
 
 function pushHeld(held: number[], midi: number): number[] {
@@ -29,6 +41,11 @@ export const useSynthStore = create<SynthStore>((set) => ({
   octave: 0,
   held: [],
   activePatch: "Classic Saw",
+  midiSupported: false,
+  midiInputs: [],
+  midiLearn: false,
+  learnTarget: null,
+  bindings: loadMidiBindings(),
   ...DEFAULT_PARAMS,
 
   arm: () => {
@@ -66,6 +83,7 @@ export const useSynthStore = create<SynthStore>((set) => ({
       vibratoDepth: s.vibratoDepth,
       pitchMod: s.pitchMod,
       filterMod: s.filterMod,
+      velocity: s.velocity,
       volume: s.volume,
       tune: s.tune,
       a440: s.a440,
@@ -73,10 +91,10 @@ export const useSynthStore = create<SynthStore>((set) => ({
     set({ armed: true });
   },
 
-  noteOn: (midi) => {
+  noteOn: (midi, velocity = 100) => {
     const engine = getEngine();
     engine.arm();
-    engine.noteOn(midi);
+    engine.noteOn(midi, velocity);
     set((s) => ({
       armed: true,
       held: pushHeld(s.held, midi),
@@ -107,5 +125,48 @@ export const useSynthStore = create<SynthStore>((set) => ({
   panic: () => {
     getEngine().panic();
     set({ held: [] });
+  },
+
+  setMidiStatus: (supported, inputs) => {
+    set({ midiSupported: supported, midiInputs: inputs });
+  },
+
+  toggleMidiLearn: () => {
+    set((s) => ({
+      midiLearn: !s.midiLearn,
+      learnTarget: null,
+    }));
+  },
+
+  setLearnTarget: (paramKey) => {
+    set({ learnTarget: paramKey });
+  },
+
+  cancelMidiLearn: () => {
+    set({ midiLearn: false, learnTarget: null });
+  },
+
+  applyCc: (cc, value) => {
+    const s = useSynthStore.getState();
+    if (s.midiLearn && s.learnTarget) {
+      const bindings = { ...s.bindings, [s.learnTarget]: cc };
+      saveMidiBindings(bindings);
+      set({ bindings, midiLearn: false, learnTarget: null });
+      return;
+    }
+    const entry = Object.entries(s.bindings).find(([, bound]) => bound === cc);
+    if (!entry) return;
+    const paramKey = entry[0] as keyof SynthParams;
+    getEngine().setParams({ [paramKey]: value / 127 } as Partial<SynthParams>);
+    set({ [paramKey]: value / 127, activePatch: "Manual" } as Partial<SynthStore>);
+  },
+
+  unbindCc: (paramKey) => {
+    const s = useSynthStore.getState();
+    if (!(paramKey in s.bindings)) return;
+    const bindings = { ...s.bindings };
+    delete bindings[paramKey];
+    saveMidiBindings(bindings);
+    set({ bindings });
   },
 }));

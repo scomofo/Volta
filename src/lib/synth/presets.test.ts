@@ -46,6 +46,7 @@ function validPatch(): SynthParams {
     vibratoDepth: 0.2,
     pitchMod: 0,
     filterMod: 0,
+    velocity: 0.7,
     volume: 0.72,
     tune: 0.5,
     a440: false,

@@ -22,8 +22,11 @@ function makePreset(
 }
 
 export const FACTORY_PRESETS: readonly FactoryPatch[] = [
-  makePreset("classic", "Classic Saw", "The full, open three-oscillator starting sound.", {}),
+  makePreset("classic", "Classic Saw", "The full, open three-oscillator starting sound.", {
+    velocity: 0.65,
+  }),
   makePreset("sub-bass", "Sub Bass", "A rounded low voice with a short filter punch.", {
+    velocity: 0.7,
     osc1Footage: "16",
     osc2Wave: "square",
     osc2Footage: "16",
@@ -41,6 +44,7 @@ export const FACTORY_PRESETS: readonly FactoryPatch[] = [
     filterTrack: 0.4,
   }),
   makePreset("silver-brass", "Silver Brass", "A bright stacked lead with a quick filter sweep.", {
+    velocity: 0.75,
     osc2Wave: "square",
     osc2Tune: 0.535,
     osc3Wave: "sawtooth",
@@ -58,6 +62,7 @@ export const FACTORY_PRESETS: readonly FactoryPatch[] = [
     ampSustain: 0.72,
   }),
   makePreset("soft-keys", "Soft Keys", "A mellow triangle tone with a gentle onset.", {
+    velocity: 0.6,
     osc1Wave: "triangle",
     osc2Wave: "triangle",
     osc2Tune: 0.502,
@@ -77,6 +82,7 @@ export const FACTORY_PRESETS: readonly FactoryPatch[] = [
     vibratoDepth: 0.1,
   }),
   makePreset("glass-pluck", "Glass Pluck", "A clear, short note with a crisp filter transient.", {
+    velocity: 0.8,
     osc1Wave: "triangle",
     osc2Wave: "square",
     osc2Footage: "4",
@@ -96,6 +102,7 @@ export const FACTORY_PRESETS: readonly FactoryPatch[] = [
     ampSustain: 0.12,
   }),
   makePreset("hollow-pulse", "Hollow Pulse", "A lean pulse wave with restrained, slow vibrato.", {
+    velocity: 0.6,
     osc1Wave: "pulse",
     osc2Wave: "triangle",
     osc2Tune: 0.49,
@@ -113,6 +120,7 @@ export const FACTORY_PRESETS: readonly FactoryPatch[] = [
     vibratoDepth: 0.18,
   }),
   makePreset("swarm-lead", "Swarm Lead", "Detuned voices gather into a wide, moving lead.", {
+    velocity: 0.7,
     osc1Wave: "sawtooth",
     osc2Wave: "sawtooth",
     osc2Tune: 0.55,
