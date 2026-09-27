@@ -44,7 +44,7 @@ export function WaveformSelect({ value, onChange, label = "Waveform" }: Waveform
             aria-label={wave.label}
             onClick={() => onChange(wave.id)}
             className={cn(
-              "flex min-h-9 min-w-9 flex-1 items-center justify-center rounded-sm px-1.5",
+              "flex min-h-9 min-w-6 flex-1 items-center justify-center rounded-sm px-1",
               "text-panel-muted transition-[color,background-color,transform] duration-(--motion-quick) ease-(--ease-out)",
               "hover:text-panel-fg active:scale-[0.96]",
               selected && "bg-walnut text-cream",

@@ -15,8 +15,8 @@ export function Rocker({ label, pressed, onPressedChange }: RockerProps) {
       aria-label={label}
       onClick={() => onPressedChange(!pressed)}
       className={cn(
-        "flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-2.5",
-        "text-micro font-medium uppercase tracking-[0.14em]",
+        "flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-2",
+        "text-micro font-medium uppercase tracking-[0.1em]",
         "transition-[background-color,color,transform] duration-(--motion-quick) ease-(--ease-out)",
         "active:scale-[0.98]",
         pressed ? "bg-walnut text-cream" : "bg-walnut/10 text-panel-muted",

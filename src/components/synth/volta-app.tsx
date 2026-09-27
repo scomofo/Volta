@@ -101,8 +101,8 @@ export function VoltaApp() {
         <section className="relative flex min-w-0 flex-1 flex-col gap-3">
           <div className="wood-frame min-w-0">
             <div className="overflow-x-auto overscroll-x-contain bg-panel text-panel-fg">
-              <div className="flex w-max gap-3 p-3 sm:p-4">
-              <div className="flex shrink-0 flex-col gap-3 sm:min-w-40">
+              <div className="flex w-max gap-1.5 p-3">
+              <div className="flex w-36 shrink-0 flex-col gap-3">
                 {silk("Controllers")}
                 <div className="flex justify-center gap-1">
                   <Knob
@@ -152,7 +152,7 @@ export function VoltaApp() {
 
               <div className="flex min-w-72 flex-1 flex-col gap-3 sm:min-w-0">
                 {silk("Oscillator bank")}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2">
                   <OscColumn
                     title="Osc 1"
                     wave={s.osc1Wave}
@@ -240,7 +240,7 @@ export function VoltaApp() {
                     defaultValue={DEFAULT_PARAMS.swarmLock}
                   />
                 </div>
-                <p className="text-center text-micro uppercase tracking-[0.16em] text-panel-muted">
+                <p className="text-center text-micro uppercase tracking-[0.08em] text-panel-muted">
                   Osc drift → lock
                 </p>
               </div>
@@ -409,7 +409,7 @@ function OscColumn({
   allowLo?: boolean;
 }) {
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex w-28 flex-col items-center gap-2">
       <p className="font-sans text-micro font-medium uppercase tracking-[0.16em] text-panel-fg">
         {title}
       </p>
