@@ -3,6 +3,7 @@ import { DEFAULT_PARAMS, getEngine, type SynthParams } from "./engine";
 import { ARP_RATE_DEFAULT, arpStepMs, type ArpPattern, type HeldNote } from "./arp";
 import { ArpPlayer } from "./arpPlayer";
 import { loadMidiBindings, saveMidiBindings, type MidiBindings } from "./midi";
+import { midiOut } from "./midi-out";
 import { OCTAVE_MAX, OCTAVE_MIN } from "./notes";
 
 type SynthStore = SynthParams & {
@@ -18,6 +19,10 @@ type SynthStore = SynthParams & {
   activePatch: string;
   midiSupported: boolean;
   midiInputs: string[];
+  midiOutSupported: boolean;
+  midiOutPorts: string[];
+  midiOutName: string | null;
+  midiOutEnabled: boolean;
   midiLearn: boolean;
   learnTarget: string | null;
   bindings: MidiBindings;
@@ -33,6 +38,9 @@ type SynthStore = SynthParams & {
   shiftOctave: (delta: number) => void;
   panic: () => void;
   setMidiStatus: (supported: boolean, inputs: string[]) => void;
+  setMidiOutStatus: (supported: boolean, ports: string[]) => void;
+  selectMidiOut: (name: string | null) => void;
+  setMidiOutEnabled: (enabled: boolean) => void;
   toggleMidiLearn: () => void;
   setLearnTarget: (paramKey: string) => void;
   cancelMidiLearn: () => void;
@@ -75,6 +83,10 @@ export const useSynthStore = create<SynthStore>((set) => ({
   activePatch: "Classic Saw",
   midiSupported: false,
   midiInputs: [],
+  midiOutSupported: false,
+  midiOutPorts: [],
+  midiOutName: midiOut.portName,
+  midiOutEnabled: midiOut.enabled,
   midiLearn: false,
   learnTarget: null,
   bindings: loadMidiBindings(),
@@ -136,6 +148,7 @@ export const useSynthStore = create<SynthStore>((set) => ({
       return;
     }
     engine.noteOn(midi, velocity);
+    midiOut.sendNoteOn(midi, velocity);
     set({ armed: true, held });
   },
 
@@ -148,6 +161,7 @@ export const useSynthStore = create<SynthStore>((set) => ({
       return;
     }
     getEngine().noteOff(midi);
+    midiOut.sendNoteOff(midi);
     set({ held });
   },
 
@@ -192,11 +206,31 @@ export const useSynthStore = create<SynthStore>((set) => ({
   panic: () => {
     arpPlayer.stop();
     getEngine().panic();
+    midiOut.sendAllNotesOff();
     set({ held: [] });
   },
 
   setMidiStatus: (supported, inputs) => {
     set({ midiSupported: supported, midiInputs: inputs });
+  },
+
+  setMidiOutStatus: (supported, ports) => {
+    set({
+      midiOutSupported: supported,
+      midiOutPorts: ports,
+      midiOutName: midiOut.portName,
+      midiOutEnabled: midiOut.enabled,
+    });
+  },
+
+  selectMidiOut: (name) => {
+    midiOut.selectPort(name);
+    set({ midiOutName: midiOut.portName });
+  },
+
+  setMidiOutEnabled: (enabled) => {
+    midiOut.setEnabled(enabled);
+    set({ midiOutEnabled: midiOut.enabled });
   },
 
   toggleMidiLearn: () => {

@@ -1,5 +1,5 @@
 import { Minus, Plus } from "lucide-react";
-import type { ComponentProps } from "react";
+import { useState, type ComponentProps } from "react";
 import { attackSec, cutoffHz, decaySec, DEFAULT_PARAMS, glideSec } from "@/lib/synth/engine";
 import {
   ARP_OCTAVES_MAX,
@@ -30,6 +30,7 @@ import { Keyboard } from "./keyboard";
 import { Knob } from "./knob";
 import { LevelMeter } from "./level-meter";
 import { MidiInput } from "./midi-input";
+import { MidiOutput } from "./midi-output";
 import { RecordButton } from "./record-button";
 import { Rocker } from "./rocker";
 import { Scope } from "./scope";
@@ -105,6 +106,84 @@ function MidiLearnButton() {
       />
       {label}
     </button>
+  );
+}
+
+function ChoirLinkButton() {
+  const midiOutSupported = useSynthStore((s) => s.midiOutSupported);
+  const midiOutPorts = useSynthStore((s) => s.midiOutPorts);
+  const midiOutName = useSynthStore((s) => s.midiOutName);
+  const midiOutEnabled = useSynthStore((s) => s.midiOutEnabled);
+  const selectMidiOut = useSynthStore((s) => s.selectMidiOut);
+  const setMidiOutEnabled = useSynthStore((s) => s.setMidiOutEnabled);
+  const [open, setOpen] = useState(false);
+
+  const active = midiOutEnabled && midiOutName !== null;
+  const label = !midiOutSupported
+    ? "No MIDI"
+    : active
+      ? "Choir · on"
+      : "Choir link";
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        title="Mirror played notes to a MIDI output — the Cantabile live-choir link"
+        className={cn(
+          "inline-flex items-center gap-2 rounded-full bg-walnut px-3 py-1.5 text-xs font-medium uppercase tracking-[0.14em] transition-colors",
+          active ? "text-accent" : "text-muted hover:text-fg",
+        )}
+      >
+        <span
+          className={cn(
+            "size-1.5 rounded-full",
+            active ? "bg-accent" : "bg-subtle",
+          )}
+        />
+        {label}
+      </button>
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Choir link settings"
+          className="absolute right-0 z-30 mt-2 w-64 rounded-lg bg-walnut p-3 shadow-xl"
+        >
+          <label className="flex cursor-pointer items-center justify-between gap-2 text-xs font-medium uppercase tracking-[0.12em] text-fg">
+            Send notes to choir
+            <input
+              type="checkbox"
+              checked={midiOutEnabled}
+              onChange={(e) => setMidiOutEnabled(e.target.checked)}
+              className="size-4 accent-[var(--color-accent)]"
+            />
+          </label>
+          <label className="mt-3 block text-xs font-medium uppercase tracking-[0.12em] text-muted">
+            MIDI output port
+            <select
+              value={midiOutName ?? ""}
+              onChange={(e) => selectMidiOut(e.target.value || null)}
+              disabled={!midiOutSupported || midiOutPorts.length === 0}
+              className="mt-1 w-full rounded-md bg-bg px-2 py-1.5 text-xs normal-case tracking-normal text-fg"
+            >
+              <option value="">Select a port…</option>
+              {midiOutPorts.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="mt-3 text-xs leading-relaxed text-muted">
+            Play Volta&apos;s keyboard and Cantabile&apos;s singers sing the notes
+            live. Needs a virtual MIDI cable (e.g. loopMIDI) between the two apps.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -190,6 +269,7 @@ export function VoltaApp() {
     >
       <ComputerKeys />
       <MidiInput />
+      <MidiOutput />
       <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-3 px-3 py-4 sm:gap-4 sm:px-5 sm:py-5">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex flex-col gap-1">
@@ -214,6 +294,7 @@ export function VoltaApp() {
               Last note · 3 VCO
             </span>
             <MidiLearnButton />
+            <ChoirLinkButton />
             <RecordButton />
             <div className="flex items-center gap-1.5">
               <button

@@ -19,7 +19,10 @@ and vocal editor: 20 recorded singers, editable voice baselines, solo/ensemble
 parts, syllable sequencing, microphone/WAV input and render-first pitch correction.
 It runs with Python on your computer; it is not a route in the hosted Volta app.
 Volta's browser synth and Cantabile produce separate WAV files for arranging in a
-DAW or sampler. This version does not route audio or MIDI between the two apps.
+DAW or sampler — and the **live link** connects them in real time: enable
+**Choir link** in Volta's header, pick a MIDI output port, and run
+`python live.py` in `tools/cantabile` so the recorded singers sing your notes
+as you play. See [LIVE_LINK.md](tools/cantabile/LIVE_LINK.md) for setup.
 
 On Windows, open `tools/cantabile`, run `setup-bank-only-windows.bat`, then
 `start-windows.bat`. The recorded vowel bank is included. For voices that sing
