@@ -16,6 +16,7 @@ import {
   APP_ENV_REL_PATH,
   findPackageBin,
   mergeAppEnv,
+  needsShellFor,
   parseAppEnv,
   projectRoot,
   readAppEnv,
@@ -136,6 +137,23 @@ test("any other command is spawned as given", () => {
     file: process.execPath,
     args: ["-v"],
   });
+});
+
+test("only bare commands go through the shell on Windows", () => {
+  // Regression: an unconditional `shell: true` made Node concatenate the
+  // absolute node.exe path and args without escaping (DEP0190), so cmd.exe
+  // tried to run `C:\Program` — "'C:\Program' is not recognized as an
+  // internal or external command". A shell is only ever needed to resolve
+  // .cmd shims for bare commands.
+  assert.equal(needsShellFor("C:\\Program Files\\nodejs\\node.exe", "win32"), false);
+  assert.equal(needsShellFor("C:/Program Files/nodejs/node.exe", "win32"), false);
+  assert.equal(needsShellFor("\\\\server\\share\\node.exe", "win32"), false);
+  assert.equal(needsShellFor("/usr/bin/node", "win32"), false);
+  assert.equal(needsShellFor("vite", "win32"), true);
+  assert.equal(needsShellFor("npm", "win32"), true);
+  assert.equal(needsShellFor("vite", "linux"), false);
+  assert.equal(needsShellFor("vite", "darwin"), false);
+  assert.equal(needsShellFor("/usr/bin/node", "linux"), false);
 });
 
 test("the wrapper runs a project bin that has no .bin shim, arguments verbatim", async () => {
