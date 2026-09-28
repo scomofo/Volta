@@ -45,20 +45,26 @@ before starting the app or loading the SFZ files.
 
 ```sh
 npm ci
-npm run dev        # Vite dev server (0.0.0.0:8080)
+npm run dev
 ```
+
+The Vite dev server listens on port 8085 on all interfaces: open
+<http://localhost:8085/>.
 
 ## Checks
 
 ```sh
-npm test           # node:test script suite + TS unit tests
-npm run lint       # eslint (must stay at 0 errors / 0 warnings)
-npm run typecheck  # tsc --noEmit
-npm run build      # production build, then db:migrate
+npm test
+npm run lint
+npm run typecheck
+npm run build
 ```
 
-`npm run build` runs `db:migrate` afterwards; without `DATABASE_URL` the
-migration step skips cleanly (the PGlite fallback migrates itself).
+`npm test` runs the node:test script suite plus the TS unit tests, `npm run lint`
+(eslint) must stay at 0 errors / 0 warnings, and `npm run typecheck` is
+`tsc --noEmit`. `npm run build` runs `db:migrate` after the production build;
+without `DATABASE_URL` the migration step skips cleanly (the PGlite fallback
+migrates itself).
 
 ## Project structure
 

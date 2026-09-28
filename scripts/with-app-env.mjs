@@ -66,6 +66,43 @@ export function mergeAppEnv(appEnv, processEnv) {
 }
 
 /**
+ * The JavaScript file behind the bin `name` of the project's own
+ * `node_modules/<name>` package, or `null` when there is none to run with node.
+ *
+ * `npm run` finds `vite` as a `node_modules/.bin` shim on PATH, but on Windows
+ * that shim is `vite.cmd`, which `spawn` cannot launch without a shell
+ * (`spawn vite ENOENT`) — and a shell would re-parse every argument. Running
+ * the package's bin file with node skips the shim, so Vite starts the same way
+ * on every platform. Only a package that shares its bin's name is looked up
+ * (`vite` provides `vite`), and a bin that is not a JavaScript file — a native
+ * executable — is left to `spawn`.
+ */
+export function findPackageBin(root, name) {
+  // A bare package name only, so a path-like command never escapes node_modules.
+  if (!/^[a-z0-9][\w.-]*$/i.test(name)) return null;
+  const pkgDir = join(root, "node_modules", name);
+  let bin;
+  try {
+    ({ bin } = JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf8")));
+  } catch {
+    return null;
+  }
+  const entry = typeof bin === "string" ? bin : bin?.[name];
+  if (typeof entry !== "string" || !/\.[cm]?js$/.test(entry)) return null;
+  return join(pkgDir, entry);
+}
+
+/**
+ * What to spawn for `command args`: a project bin runs as a script under this
+ * node (see `findPackageBin`); anything else — an absolute path, a system
+ * tool — is spawned as given.
+ */
+export function resolveCommand(root, command, args) {
+  const bin = findPackageBin(root, command);
+  return bin ? { file: process.execPath, args: [bin, ...args] } : { file: command, args };
+}
+
+/**
  * Translate a child's `exit` `(code, signal)` into this process's exit status.
  *
  * Do not re-raise the signal with `process.kill(process.pid, signal)`: under
@@ -110,14 +147,18 @@ function main(argv) {
     console.error("usage: node scripts/with-app-env.mjs <command> [args…]");
     process.exit(2);
   }
-  const env = mergeAppEnv(readAppEnv(projectRoot()), process.env);
-  const child = spawn(command, args, { stdio: "inherit", env });
+  const root = projectRoot();
+  const env = mergeAppEnv(readAppEnv(root), process.env);
+  const target = resolveCommand(root, command, args);
+  const child = spawn(target.file, target.args, { stdio: "inherit", env });
   // The dev server is long-running and is stopped by signalling this wrapper.
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     process.on(signal, () => child.kill(signal));
   }
   child.on("error", (err) => {
-    console.error(`[with-app-env] failed to run ${command}:`, err?.message || err);
+    // Neither a project bin nor on PATH: usually `npm install` has not run yet.
+    const hint = err?.code === "ENOENT" ? " — is it installed? Run `npm install` first." : "";
+    console.error(`[with-app-env] failed to run ${command}: ${err?.message || err}${hint}`);
     process.exit(127);
   });
   child.on("exit", (code, signal) => {
