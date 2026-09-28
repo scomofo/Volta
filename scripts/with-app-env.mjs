@@ -150,7 +150,7 @@ function main(argv) {
   const root = projectRoot();
   const env = mergeAppEnv(readAppEnv(root), process.env);
   const target = resolveCommand(root, command, args);
-  const child = spawn(target.file, target.args, { stdio: "inherit", env });
+  const child = spawn(target.file, target.args, { stdio: "inherit", env, shell: process.platform === "win32" });
   // The dev server is long-running and is stopped by signalling this wrapper.
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     process.on(signal, () => child.kill(signal));
