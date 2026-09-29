@@ -4,6 +4,15 @@ import { ARP_RATE_DEFAULT, arpStepMs, type ArpPattern, type HeldNote } from "./a
 import { ArpPlayer } from "./arpPlayer.ts";
 import { loadMidiBindings, saveMidiBindings, type MidiBindings } from "./midi.ts";
 import { midiOut } from "./midi-out.ts";
+import {
+  CHOIR_DYNAMICS_CC,
+  CHOIR_VOWEL_CC,
+  glideToPortamentoCc,
+  PITCH_BEND_CENTER,
+  PITCH_BEND_MAX,
+  pitchBendToSemitones,
+  PORTAMENTO_TIME_CC,
+} from "./performance.ts";
 import { OCTAVE_MAX, OCTAVE_MIN } from "./notes.ts";
 
 type SynthStore = SynthParams & {
@@ -26,9 +35,25 @@ type SynthStore = SynthParams & {
   midiLearn: boolean;
   learnTarget: string | null;
   bindings: MidiBindings;
+  /** 14-bit pitch-wheel value, 0–16383, center 8192. */
+  pitchBend: number;
+  /** Choir vowel morph, 0–127 → CC1. */
+  choirVowel: number;
+  /** Choir dynamics, 0–127 → CC11. */
+  choirDynamics: number;
   arm: () => void;
   noteOn: (midi: number, velocity?: number) => void;
   noteOff: (midi: number) => void;
+  /**
+   * Incoming MIDI-in notes (the Cantabile → Volta direction): play the synth
+   * engine directly without echoing back to MIDI out and without touching
+   * the arp-held list, so the two directions never feed back into each other.
+   */
+  noteOnExternal: (midi: number, velocity?: number) => void;
+  noteOffExternal: (midi: number) => void;
+  setPitchBend: (value14: number) => void;
+  setChoirVowel: (value: number) => void;
+  setChoirDynamics: (value: number) => void;
   toggleArp: () => void;
   setArpPattern: (pattern: ArpPattern) => void;
   setArpRate: (bpm: number) => void;
@@ -96,6 +121,9 @@ export const useSynthStore = create<SynthStore>((set) => ({
   midiLearn: false,
   learnTarget: null,
   bindings: loadMidiBindings(),
+  pitchBend: PITCH_BEND_CENTER,
+  choirVowel: 0,
+  choirDynamics: 100,
   ...DEFAULT_PARAMS,
 
   arm: () => {
@@ -171,6 +199,37 @@ export const useSynthStore = create<SynthStore>((set) => ({
     set({ held });
   },
 
+  noteOnExternal: (midi, velocity = 100) => {
+    // No MIDI-out echo and no arp-held tracking: the Cantabile → Volta
+    // direction drives the engine directly so it can never loop back.
+    getEngine().noteOn(midi, velocity);
+  },
+
+  noteOffExternal: (midi) => {
+    getEngine().noteOff(midi);
+  },
+
+  setPitchBend: (value14) => {
+    const v = Number.isFinite(value14)
+      ? Math.max(0, Math.min(PITCH_BEND_MAX, Math.round(value14)))
+      : PITCH_BEND_CENTER;
+    getEngine().setPitchBend(pitchBendToSemitones(v));
+    midiOut.sendPitchBend(v);
+    set({ pitchBend: v });
+  },
+
+  setChoirVowel: (value) => {
+    const v = Number.isFinite(value) ? Math.max(0, Math.min(127, Math.round(value))) : 0;
+    midiOut.sendCc(CHOIR_VOWEL_CC, v);
+    set({ choirVowel: v });
+  },
+
+  setChoirDynamics: (value) => {
+    const v = Number.isFinite(value) ? Math.max(0, Math.min(127, Math.round(value))) : 100;
+    midiOut.sendCc(CHOIR_DYNAMICS_CC, v);
+    set({ choirDynamics: v });
+  },
+
   toggleArp: () => {
     const s = useSynthStore.getState();
     if (!s.arp) {
@@ -195,11 +254,16 @@ export const useSynthStore = create<SynthStore>((set) => ({
 
   patch: (partial) => {
     getEngine().setParams(partial);
+    if (partial.glide !== undefined) {
+      // Mirror the glide knob as standard portamento time for the choir link.
+      midiOut.sendCc(PORTAMENTO_TIME_CC, glideToPortamentoCc(partial.glide));
+    }
     set({ ...partial, activePatch: "Manual" });
   },
 
   applyPreset: (params, label) => {
     getEngine().setParams(params);
+    midiOut.sendCc(PORTAMENTO_TIME_CC, glideToPortamentoCc(params.glide));
     set({ ...params, activePatch: label });
   },
 

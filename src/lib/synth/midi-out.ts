@@ -76,6 +76,20 @@ export function noteOffBytes(note: number): [number, number, number] {
   return [0x80, clamp7(note), 0];
 }
 
+/** Raw channel-voice bytes for a control change on channel 0. */
+export function ccBytes(cc: number, value: number): [number, number, number] {
+  return [0xb0, clamp7(cc), clamp7(value)];
+}
+
+/**
+ * Raw pitch-bend bytes on channel 0. Value is 14-bit (0–16383),
+ * center 8192; LSB first, then MSB.
+ */
+export function pitchBendBytes(value14: number): [number, number, number] {
+  const v = clamp14(value14);
+  return [0xe0, v & 0x7f, (v >> 7) & 0x7f];
+}
+
 /** All-notes-off (CC 123) on channel 0. */
 export function allNotesOffBytes(): [number, number, number] {
   return [0xb0, 123, 0];
@@ -84,6 +98,11 @@ export function allNotesOffBytes(): [number, number, number] {
 function clamp7(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(127, Math.round(value)));
+}
+
+function clamp14(value: number): number {
+  if (!Number.isFinite(value)) return 8192;
+  return Math.max(0, Math.min(16383, Math.round(value)));
 }
 
 /** Find a port by the persisted name; ids are session-scoped, names are stable. */
@@ -194,6 +213,16 @@ export class MidiOutManager {
 
   sendAllNotesOff(): boolean {
     return this.send(allNotesOffBytes());
+  }
+
+  /** Send a control change (e.g. choir vowel morph, dynamics, portamento time). */
+  sendCc(cc: number, value: number): boolean {
+    return this.send(ccBytes(cc, value));
+  }
+
+  /** Send a 14-bit pitch-bend message (0–16383, center 8192). */
+  sendPitchBend(value14: number): boolean {
+    return this.send(pitchBendBytes(value14));
   }
 
   private send(bytes: readonly number[]): boolean {

@@ -14,6 +14,7 @@ import { TAP_WORKLET } from "./tap-worklet.ts";
 import { TakeRecorder } from "./recorder.ts";
 import { encodeWav } from "./wav.ts";
 import { vibratoGainHz, vibratoRateHz } from "./modulation.ts";
+import { bendRatio } from "./performance.ts";
 
 
 
@@ -212,6 +213,8 @@ export class SynthEngine {
   private lastMidi = 60;
   private lastVelocity = 1;
   private velCutoffHz = 0;
+  /** Pitch-wheel offset in semitones; applied to every oscillator in setPitch. */
+  private bendSemitones = 0;
   private workletReady = false;
   private swarmReady = false;
   private tapNode: AudioWorkletNode | null = null;
@@ -686,16 +689,28 @@ export class SynthEngine {
     return midiToFreq(key) * footageRatio(p.osc3Footage) * 2 ** (det / 12);
   }
 
+  /**
+   * Pitch-wheel bend in semitones (typically ±2). Re-applies the current
+   * pitch immediately when a note is sounding; otherwise takes effect on
+   * the next noteOn. Safe to call before the audio graph exists.
+   */
+  setPitchBend(semitones: number): void {
+    this.bendSemitones = Number.isFinite(semitones) ? semitones : 0;
+    if (!this.ctx || !this.envOpen) return;
+    this.setPitch(this.lastMidi, false);
+  }
+
   private setPitch(midi: number, glide: boolean): void {
     if (!this.ctx) return;
     this.lastMidi = midi;
     const now = this.ctx.currentTime;
     const time = glideSec(this.params.glide);
     const tau = glide && time > 0 ? Math.max(0.008, time * 0.35) : 0;
+    const bend = bendRatio(this.bendSemitones);
     for (let i = 0; i < 3; i++) {
       const osc = this.oscs[i];
       if (!osc) continue;
-      const freq = this.oscFreq(i, midi);
+      const freq = this.oscFreq(i, midi) * bend;
       if (tau > 0) osc.frequency.setTargetAtTime(freq, now, tau);
       else osc.frequency.setValueAtTime(freq, now);
     }
@@ -709,7 +724,7 @@ export class SynthEngine {
     }
     if (this.swarmWorklet) {
       const swarmFreq = this.swarmWorklet.parameters.get("freq");
-      const hz = this.oscFreq(0, midi);
+      const hz = this.oscFreq(0, midi) * bend;
       if (swarmFreq) {
         if (tau > 0) swarmFreq.setTargetAtTime(hz, now, tau);
         else swarmFreq.setValueAtTime(hz, now);
