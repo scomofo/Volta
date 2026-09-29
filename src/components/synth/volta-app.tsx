@@ -139,28 +139,71 @@ function ArpPatternSelect({
   value: ArpPattern;
   onChange: (pattern: ArpPattern) => void;
 }) {
+  const learnMode = useSynthStore((s) => s.midiLearn);
+  const learnTarget = useSynthStore((s) => s.learnTarget);
+  const boundCc = useSynthStore((s) => s.bindings["arpPattern"] ?? null);
+  const setLearnTarget = useSynthStore((s) => s.setLearnTarget);
+  const unbindCc = useSynthStore((s) => s.unbindCc);
+  const isTarget = learnTarget === "arpPattern";
+
+  const handleSelect = (pattern: ArpPattern) => {
+    // In learn mode a click chooses this control as the MIDI-learn target,
+    // exactly like clicking a knob — the pattern itself does not change.
+    if (learnMode) setLearnTarget("arpPattern");
+    else onChange(pattern);
+  };
+
   return (
-    <div role="radiogroup" aria-label="Arp pattern" className="grid grid-cols-2 gap-1">
-      {ARP_PATTERNS.map((pattern) => {
-        const selected = pattern.id === value;
-        return (
-          <button
-            key={pattern.id}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            onClick={() => onChange(pattern.id)}
-            className={cn(
-              "min-h-9 rounded-md px-1 text-micro font-medium uppercase tracking-[0.1em]",
-              "transition-[background-color,color,transform] duration-(--motion-quick) ease-(--ease-out)",
-              "hover:text-panel-fg active:scale-[0.96]",
-              selected ? "bg-walnut text-cream" : "bg-walnut/10 text-panel-muted",
-            )}
-          >
-            {pattern.label}
-          </button>
-        );
-      })}
+    <div className="flex flex-col items-center gap-1">
+      <div
+        role="radiogroup"
+        aria-label={`Arp pattern${boundCc != null ? `, MIDI CC ${boundCc}` : ""}${isTarget ? ", waiting for MIDI CC" : ""}`}
+        title={
+          boundCc != null
+            ? `MIDI CC ${boundCc} — right-click to unlearn`
+            : learnMode
+              ? "Click to MIDI-learn this control"
+              : undefined
+        }
+        onContextMenu={(event) => {
+          if (boundCc != null) {
+            event.preventDefault();
+            unbindCc("arpPattern");
+          }
+        }}
+        className={cn(
+          "grid w-full grid-cols-2 gap-1",
+          learnMode && "cursor-crosshair",
+          isTarget && "animate-pulse rounded-md ring-2 ring-accent ring-offset-2 ring-offset-panel",
+        )}
+      >
+        {ARP_PATTERNS.map((pattern) => {
+          const selected = pattern.id === value;
+          return (
+            <button
+              key={pattern.id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => handleSelect(pattern.id)}
+              className={cn(
+                "min-h-9 rounded-md px-1 text-micro font-medium uppercase tracking-[0.1em]",
+                "transition-[background-color,color,transform] duration-(--motion-quick) ease-(--ease-out)",
+                "hover:text-panel-fg active:scale-[0.96]",
+                selected ? "bg-walnut text-cream" : "bg-walnut/10 text-panel-muted",
+              )}
+            >
+              {pattern.label}
+            </button>
+          );
+        })}
+      </div>
+      <span
+        aria-hidden
+        className="h-3 font-sans text-[0.6rem] font-medium uppercase tracking-[0.08em] text-accent/90"
+      >
+        {isTarget ? "listening…" : boundCc != null ? `CC ${boundCc}` : ""}
+      </span>
     </div>
   );
 }
@@ -321,7 +364,8 @@ export function VoltaApp() {
                 </div>
                 <ArpPatternSelect value={s.arpPattern} onChange={s.setArpPattern} />
                 <div className="flex justify-center gap-1">
-                  <Knob
+                  <LearnKnob
+                    paramKey="arpRate"
                     label="Rate"
                     value={bpmToRate(s.arpRate)}
                     display={`${s.arpRate} BPM`}

@@ -1,9 +1,9 @@
 import { create } from "zustand";
-import { DEFAULT_PARAMS, getEngine, type SynthParams } from "./engine";
-import { ARP_RATE_DEFAULT, arpStepMs, type ArpPattern, type HeldNote } from "./arp";
-import { ArpPlayer } from "./arpPlayer";
-import { loadMidiBindings, saveMidiBindings, type MidiBindings } from "./midi";
-import { OCTAVE_MAX, OCTAVE_MIN } from "./notes";
+import { DEFAULT_PARAMS, getEngine, type SynthParams } from "./engine.ts";
+import { ARP_PATTERNS, ARP_RATE_DEFAULT, arpStepMs, rateToBpm, type ArpPattern, type HeldNote } from "./arp.ts";
+import { ArpPlayer } from "./arpPlayer.ts";
+import { loadMidiBindings, saveMidiBindings, type MidiBindings } from "./midi.ts";
+import { OCTAVE_MAX, OCTAVE_MIN } from "./notes.ts";
 
 type SynthStore = SynthParams & {
   armed: boolean;
@@ -224,7 +224,21 @@ export const useSynthStore = create<SynthStore>((set) => ({
     }
     const entry = Object.entries(s.bindings).find(([, bound]) => bound === cc);
     if (!entry) return;
-    const paramKey = entry[0] as keyof SynthParams;
+    const paramKey = entry[0];
+    // Arpeggiator controls are not patch params: a bound CC drives the arp
+    // transport directly and never retouches the loaded patch or the engine.
+    if (paramKey === "arpRate") {
+      s.setArpRate(rateToBpm(value / 127));
+      return;
+    }
+    if (paramKey === "arpPattern") {
+      const index = Math.min(
+        ARP_PATTERNS.length - 1,
+        Math.floor((value / 128) * ARP_PATTERNS.length),
+      );
+      s.setArpPattern(ARP_PATTERNS[index].id);
+      return;
+    }
     getEngine().setParams({ [paramKey]: value / 127 } as Partial<SynthParams>);
     set({ [paramKey]: value / 127, activePatch: "Manual" } as Partial<SynthStore>);
   },

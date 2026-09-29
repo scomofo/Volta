@@ -1,3 +1,4 @@
+import { ARP_LEARNABLE_KEYS } from "./arp.ts";
 import { LEARNABLE_KEYS } from "./patch-storage.ts";
 
 /**
@@ -49,7 +50,8 @@ function browserStorage(): BindingStorage | null {
 
 function isValidBinding(key: string, cc: unknown): cc is number {
   return (
-    (LEARNABLE_KEYS as readonly string[]).includes(key) &&
+    ((LEARNABLE_KEYS as readonly string[]).includes(key) ||
+      (ARP_LEARNABLE_KEYS as readonly string[]).includes(key)) &&
     typeof cc === "number" &&
     Number.isInteger(cc) &&
     cc >= 0 &&

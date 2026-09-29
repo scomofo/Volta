@@ -21,6 +21,14 @@ export const ARP_RATE_DEFAULT = 120;
 export const ARP_OCTAVES_MIN = 1;
 export const ARP_OCTAVES_MAX = 3;
 
+/**
+ * Store keys for the arpeggiator controls that support MIDI learn.
+ * These are transport-style controls, not patch parameters: learning them
+ * never touches the synth patch or the audio engine.
+ */
+export const ARP_LEARNABLE_KEYS = ["arpRate", "arpPattern"] as const;
+export type ArpLearnableKey = (typeof ARP_LEARNABLE_KEYS)[number];
+
 /** 16th-note step duration in ms for a BPM rate. */
 export function arpStepMs(bpm: number): number {
   return 60000 / Math.max(1, bpm) / 4;

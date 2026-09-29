@@ -1,4 +1,4 @@
-import { DEFAULT_PARAMS, type SynthParams } from "./engine";
+import { DEFAULT_PARAMS, type SynthParams } from "./engine.ts";
 
 export type FactoryPatch = {
   id: string;
