@@ -4,7 +4,9 @@ import { useSynthStore } from "@/lib/synth/store";
 
 /**
  * Attaches Web MIDI input once: routes note on/off (with real velocity) into
- * the synth and CC messages into MIDI learn / learned bindings. Renders nothing.
+ * the synth engine directly — never echoed back to MIDI out, so the
+ * Cantabile → Volta direction can't loop — and CC messages into MIDI learn /
+ * learned bindings. Renders nothing.
  */
 export function MidiInput() {
   useEffect(() => {
@@ -24,9 +26,9 @@ export function MidiInput() {
       const msg = parseMidiMessage(data);
       const s = useSynthStore.getState();
       if (msg.kind === "noteOn") {
-        s.noteOn(msg.note, msg.velocity);
+        s.noteOnExternal(msg.note, msg.velocity);
       } else if (msg.kind === "noteOff") {
-        s.noteOff(msg.note);
+        s.noteOffExternal(msg.note);
       } else if (msg.kind === "cc") {
         s.applyCc(msg.cc, msg.value);
       }

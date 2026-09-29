@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   allNotesOffBytes,
+  ccBytes,
   findOutputByName,
   loadMidiOutConfig,
   MidiOutManager,
   noteOffBytes,
   noteOnBytes,
+  pitchBendBytes,
   saveMidiOutConfig,
   type ConfigStorage,
   type MidiAccessLike,
@@ -42,6 +44,20 @@ test("note on/off/all-off bytes use channel 0 with clamped 7-bit values", () => 
   assert.deepEqual(noteOnBytes(200, -5), [0x90, 127, 0]);
   assert.deepEqual(noteOffBytes(61), [0x80, 61, 0]);
   assert.deepEqual(allNotesOffBytes(), [0xb0, 123, 0]);
+});
+
+test("cc bytes use channel 0 with clamped 7-bit values", () => {
+  assert.deepEqual(ccBytes(1, 64), [0xb0, 1, 64]);
+  assert.deepEqual(ccBytes(11, 200), [0xb0, 11, 127]);
+  assert.deepEqual(ccBytes(5, -3), [0xb0, 5, 0]);
+});
+
+test("pitch-bend bytes are 14-bit, LSB first, center 8192", () => {
+  assert.deepEqual(pitchBendBytes(8192), [0xe0, 0x00, 0x40]);
+  assert.deepEqual(pitchBendBytes(0), [0xe0, 0x00, 0x00]);
+  assert.deepEqual(pitchBendBytes(16383), [0xe0, 0x7f, 0x7f]);
+  assert.deepEqual(pitchBendBytes(20000), [0xe0, 0x7f, 0x7f]);
+  assert.deepEqual(pitchBendBytes(-5), [0xe0, 0x00, 0x00]);
 });
 
 test("config persists by port name and round-trips", () => {
@@ -91,6 +107,27 @@ test("manager sends nothing until enabled with a selected port", () => {
     [0x90, 60, 100],
     [0x80, 60, 0],
     [0xb0, 123, 0],
+  ]);
+});
+
+test("manager sends cc and pitch bend through the same gate as notes", () => {
+  const sent: number[][] = [];
+  const manager = new MidiOutManager(memoryStorage());
+  manager.attach(fakeAccess([fakePort("p1", "loopMIDI Choir", sent)]));
+  manager.selectPort("loopMIDI Choir");
+  // Disabled: nothing goes out.
+  assert.equal(manager.sendCc(1, 64), false);
+  assert.equal(manager.sendPitchBend(8192), false);
+  manager.setEnabled(true);
+  assert.equal(manager.sendCc(1, 64), true);
+  assert.equal(manager.sendPitchBend(8192), true);
+  assert.equal(manager.sendCc(11, 100), true);
+  assert.equal(manager.sendCc(5, 32), true);
+  assert.deepEqual(sent, [
+    [0xb0, 1, 64],
+    [0xe0, 0x00, 0x40],
+    [0xb0, 11, 100],
+    [0xb0, 5, 32],
   ]);
 });
 

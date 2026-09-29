@@ -27,6 +27,7 @@ import { PatchShelf } from "./patch-shelf";
 import { ComputerKeys } from "./computer-keys";
 import { FootageSelect } from "./footage-select";
 import { Keyboard } from "./keyboard";
+import { Wheels } from "./wheels";
 import { Knob } from "./knob";
 import { LevelMeter } from "./level-meter";
 import { MidiInput } from "./midi-input";
@@ -116,6 +117,8 @@ function ChoirLinkButton() {
   const midiOutEnabled = useSynthStore((s) => s.midiOutEnabled);
   const selectMidiOut = useSynthStore((s) => s.selectMidiOut);
   const setMidiOutEnabled = useSynthStore((s) => s.setMidiOutEnabled);
+  const choirDynamics = useSynthStore((s) => s.choirDynamics);
+  const setChoirDynamics = useSynthStore((s) => s.setChoirDynamics);
   const [open, setOpen] = useState(false);
 
   const active = midiOutEnabled && midiOutName !== null;
@@ -179,8 +182,24 @@ function ChoirLinkButton() {
           </label>
           <p className="mt-3 text-xs leading-relaxed text-muted">
             Play Volta&apos;s keyboard and Cantabile&apos;s singers sing the notes
-            live. Needs a virtual MIDI cable (e.g. loopMIDI) between the two apps.
+            live. The pitch wheel bends the choir, the mod wheel morphs its
+            vowel, and the dynamics slider shapes its volume. MIDI coming in
+            plays Volta&apos;s own synth directly — it is never echoed back to
+            the choir. Needs a virtual MIDI cable (e.g. loopMIDI) between the
+            two apps.
           </p>
+          <label className="mt-3 block text-xs font-medium uppercase tracking-[0.12em] text-muted">
+            Choir dynamics (CC11)
+            <input
+              type="range"
+              min={0}
+              max={127}
+              value={choirDynamics}
+              onChange={(e) => setChoirDynamics(Number(e.target.value))}
+              className="mt-1 w-full accent-[var(--color-accent)]"
+              aria-label="Choir dynamics"
+            />
+          </label>
         </div>
       )}
     </div>
@@ -688,8 +707,11 @@ export function VoltaApp() {
             <LevelMeter armed={armed} />
           </div>
 
-          <div className="min-w-0 overflow-hidden rounded-lg bg-walnut p-1.5">
-            <Keyboard />
+          <div className="flex min-w-0 items-stretch gap-2 overflow-hidden rounded-lg bg-walnut p-1.5">
+            <Wheels />
+            <div className="min-w-0 flex-1">
+              <Keyboard />
+            </div>
           </div>
 
           <p className="px-1 text-pretty text-xs leading-relaxed text-muted">
