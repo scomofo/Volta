@@ -22,7 +22,7 @@
 import { spawn } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
 import { constants as osConstants } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, posix, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const APP_ENV_REL_PATH = ".grok/app-env.json";
@@ -103,6 +103,22 @@ export function resolveCommand(root, command, args) {
 }
 
 /**
+ * Whether `file` must be spawned through a shell on `platform`.
+ *
+ * On Windows a bare command (`vite`, `npm`) needs cmd.exe to resolve the
+ * `.cmd` shims that `spawn` cannot launch directly (`spawn vite ENOENT`).
+ * An absolute executable path must NEVER go through the shell: with
+ * `shell: true` Node concatenates file and args without escaping (DEP0190),
+ * so a space in the path — the default `C:\Program Files\nodejs\node.exe` —
+ * makes cmd.exe try to run `C:\Program`. Absolute paths in either platform's
+ * spelling always bypass the shell.
+ */
+export function needsShellFor(file, platform = process.platform) {
+  if (platform !== "win32") return false;
+  return !win32.isAbsolute(file) && !posix.isAbsolute(file);
+}
+
+/**
  * Translate a child's `exit` `(code, signal)` into this process's exit status.
  *
  * Do not re-raise the signal with `process.kill(process.pid, signal)`: under
@@ -150,7 +166,7 @@ function main(argv) {
   const root = projectRoot();
   const env = mergeAppEnv(readAppEnv(root), process.env);
   const target = resolveCommand(root, command, args);
-  const child = spawn(target.file, target.args, { stdio: "inherit", env });
+  const child = spawn(target.file, target.args, { stdio: "inherit", env, shell: needsShellFor(target.file) });
   // The dev server is long-running and is stopped by signalling this wrapper.
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     process.on(signal, () => child.kill(signal));
