@@ -14,7 +14,8 @@ captures the master output exactly as heard, up to a 5:00 limit.
 
 ## Cantabile vocal companion
 
-The [Cantabile prototype](tools/cantabile/README.md) adds a separate local choir
+The [Cantabile vocal companion](https://github.com/scomofo/cantabile) —
+included here as a submodule at `tools/cantabile` — adds a separate local choir
 and vocal editor: 20 recorded singers, editable voice baselines, solo/ensemble
 parts, syllable sequencing, microphone/WAV input and render-first pitch correction.
 It runs with Python on your computer; it is not a route in the hosted Volta app.

@@ -1,0 +1,3 @@
+[submodule "tools/cantabile"]
+	path = tools/cantabile
+	url = https://github.com/scomofo/cantabile.git
