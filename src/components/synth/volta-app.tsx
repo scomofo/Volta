@@ -1,5 +1,5 @@
 import { Minus, Plus } from "lucide-react";
-import { useState, type ComponentProps } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { attackSec, cutoffHz, decaySec, DEFAULT_PARAMS, glideSec } from "@/lib/synth/engine";
 import {
   ARP_OCTAVES_MAX,
@@ -20,6 +20,13 @@ import {
   type OscWave,
 } from "@/lib/synth/notes";
 import { formatVibratoRate } from "@/lib/synth/modulation";
+import {
+  formatChorusDepth,
+  formatChorusRate,
+  formatDelayTime,
+  formatDriveLevel,
+  formatDriveTone,
+} from "@/lib/synth/effects";
 import { useSynthStore } from "@/lib/synth/store";
 import { cn } from "@/lib/utils";
 import { ArmGate } from "./arm-gate";
@@ -697,6 +704,104 @@ export function VoltaApp() {
                 </div>
               </div>
             </div>
+
+              <div className="silk-rule hidden self-stretch sm:block" />
+
+              <div className="flex shrink-0 flex-col gap-3">
+                {silk("Effects")}
+                <div className="flex gap-3">
+                  <FxColumn
+                    title="Drive"
+                    enabled={s.fxDriveOn}
+                    onEnabledChange={(fxDriveOn) => patch({ fxDriveOn })}
+                  >
+                    <LearnKnob
+                      label="Drive"
+                      value={s.fxDriveAmount}
+                      display={formatPct(s.fxDriveAmount)}
+                      paramKey="fxDriveAmount"
+                      onChange={(fxDriveAmount) => patch({ fxDriveAmount })}
+                      defaultValue={DEFAULT_PARAMS.fxDriveAmount}
+                    />
+                    <LearnKnob
+                      label="Tone"
+                      value={s.fxDriveTone}
+                      display={formatDriveTone(s.fxDriveTone)}
+                      paramKey="fxDriveTone"
+                      onChange={(fxDriveTone) => patch({ fxDriveTone })}
+                      defaultValue={DEFAULT_PARAMS.fxDriveTone}
+                    />
+                    <LearnKnob
+                      label="Level"
+                      value={s.fxDriveLevel}
+                      display={formatDriveLevel(s.fxDriveLevel)}
+                      paramKey="fxDriveLevel"
+                      onChange={(fxDriveLevel) => patch({ fxDriveLevel })}
+                      defaultValue={DEFAULT_PARAMS.fxDriveLevel}
+                    />
+                  </FxColumn>
+                  <FxColumn
+                    title="Chorus"
+                    enabled={s.fxChorusOn}
+                    onEnabledChange={(fxChorusOn) => patch({ fxChorusOn })}
+                  >
+                    <LearnKnob
+                      label="Rate"
+                      value={s.fxChorusRate}
+                      display={formatChorusRate(s.fxChorusRate)}
+                      paramKey="fxChorusRate"
+                      onChange={(fxChorusRate) => patch({ fxChorusRate })}
+                      defaultValue={DEFAULT_PARAMS.fxChorusRate}
+                    />
+                    <LearnKnob
+                      label="Depth"
+                      value={s.fxChorusDepth}
+                      display={formatChorusDepth(s.fxChorusDepth)}
+                      paramKey="fxChorusDepth"
+                      onChange={(fxChorusDepth) => patch({ fxChorusDepth })}
+                      defaultValue={DEFAULT_PARAMS.fxChorusDepth}
+                    />
+                    <LearnKnob
+                      label="Mix"
+                      value={s.fxChorusMix}
+                      display={formatPct(s.fxChorusMix)}
+                      paramKey="fxChorusMix"
+                      onChange={(fxChorusMix) => patch({ fxChorusMix })}
+                      defaultValue={DEFAULT_PARAMS.fxChorusMix}
+                    />
+                  </FxColumn>
+                  <FxColumn
+                    title="Delay"
+                    enabled={s.fxDelayOn}
+                    onEnabledChange={(fxDelayOn) => patch({ fxDelayOn })}
+                  >
+                    <LearnKnob
+                      label="Time"
+                      value={s.fxDelayTime}
+                      display={formatDelayTime(s.fxDelayTime)}
+                      paramKey="fxDelayTime"
+                      onChange={(fxDelayTime) => patch({ fxDelayTime })}
+                      defaultValue={DEFAULT_PARAMS.fxDelayTime}
+                    />
+                    <LearnKnob
+                      label="Fdbk"
+                      value={s.fxDelayFeedback}
+                      display={formatPct(s.fxDelayFeedback)}
+                      paramKey="fxDelayFeedback"
+                      onChange={(fxDelayFeedback) => patch({ fxDelayFeedback })}
+                      defaultValue={DEFAULT_PARAMS.fxDelayFeedback}
+                    />
+                    <LearnKnob
+                      label="Mix"
+                      value={s.fxDelayMix}
+                      display={formatPct(s.fxDelayMix)}
+                      paramKey="fxDelayMix"
+                      onChange={(fxDelayMix) => patch({ fxDelayMix })}
+                      defaultValue={DEFAULT_PARAMS.fxDelayMix}
+                    />
+                  </FxColumn>
+                </div>
+              </div>
           </div>
           </div>
 
@@ -726,6 +831,28 @@ export function VoltaApp() {
         </section>
       </div>
     </main>
+  );
+}
+
+function FxColumn({
+  title,
+  enabled,
+  onEnabledChange,
+  children,
+}: {
+  title: string;
+  enabled: boolean;
+  onEnabledChange: (next: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex w-44 flex-col items-center gap-2">
+      <p className="font-sans text-micro font-medium uppercase tracking-[0.16em] text-panel-fg">
+        {title}
+      </p>
+      <Rocker label={title} pressed={enabled} onPressedChange={onEnabledChange} />
+      <div className="flex justify-center gap-1">{children}</div>
+    </div>
   );
 }
 

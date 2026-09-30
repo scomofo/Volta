@@ -165,6 +165,18 @@ export const useSynthStore = create<SynthStore>((set) => ({
       volume: s.volume,
       tune: s.tune,
       a440: s.a440,
+      fxDriveOn: s.fxDriveOn,
+      fxDriveAmount: s.fxDriveAmount,
+      fxDriveTone: s.fxDriveTone,
+      fxDriveLevel: s.fxDriveLevel,
+      fxChorusOn: s.fxChorusOn,
+      fxChorusRate: s.fxChorusRate,
+      fxChorusDepth: s.fxChorusDepth,
+      fxChorusMix: s.fxChorusMix,
+      fxDelayOn: s.fxDelayOn,
+      fxDelayTime: s.fxDelayTime,
+      fxDelayFeedback: s.fxDelayFeedback,
+      fxDelayMix: s.fxDelayMix,
     });
     set({ armed: true });
   },

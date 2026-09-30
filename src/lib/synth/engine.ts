@@ -14,6 +14,18 @@ import { TAP_WORKLET } from "./tap-worklet.ts";
 import { TakeRecorder } from "./recorder.ts";
 import { encodeWav } from "./wav.ts";
 import { vibratoGainHz, vibratoRateHz } from "./modulation.ts";
+import {
+  CHORUS_TAP_A_SEC,
+  CHORUS_TAP_B_SEC,
+  chorusDepthSec,
+  chorusRateHz,
+  delayFeedbackGain,
+  delayTimeSec,
+  driveLevelGain,
+  drivePregain,
+  driveToneDb,
+  DRIVE_TONE_FREQ_HZ,
+} from "./effects.ts";
 import { bendRatio } from "./performance.ts";
 
 
@@ -55,6 +67,31 @@ export type SynthParams = {
   volume: number;
   tune: number;
   a440: boolean;
+  /** FX section: Drive → Chorus → Delay, inserted post-VCA. */
+  /** Drive on/off. */
+  fxDriveOn: boolean;
+  /** Drive amount 0..1 → pre-gain into the tanh shaper. */
+  fxDriveAmount: number;
+  /** Drive tone 0..1 → high-shelf ±12 dB, flat at center. */
+  fxDriveTone: number;
+  /** Drive output level 0..1, 0.5 = unity. */
+  fxDriveLevel: number;
+  /** Chorus on/off. */
+  fxChorusOn: boolean;
+  /** Chorus LFO rate 0..1. */
+  fxChorusRate: number;
+  /** Chorus LFO depth 0..1. */
+  fxChorusDepth: number;
+  /** Chorus wet/dry mix 0..1. */
+  fxChorusMix: number;
+  /** Delay on/off. */
+  fxDelayOn: boolean;
+  /** Delay time 0..1 → 1 ms..1 s exponential. */
+  fxDelayTime: number;
+  /** Delay feedback 0..1 → loop gain, capped below runaway. */
+  fxDelayFeedback: number;
+  /** Delay wet/dry mix 0..1. */
+  fxDelayMix: number;
 };
 
 export const DEFAULT_PARAMS: SynthParams = {
@@ -92,6 +129,20 @@ export const DEFAULT_PARAMS: SynthParams = {
   volume: 0.72,
   tune: 0.5,
   a440: false,
+  // FX section defaults: every effect off / dry, so the synth sounds
+  // exactly as before until the player touches the Effects panel.
+  fxDriveOn: false,
+  fxDriveAmount: 0.5,
+  fxDriveTone: 0.5,
+  fxDriveLevel: 0.5,
+  fxChorusOn: false,
+  fxChorusRate: 0.3,
+  fxChorusDepth: 0.3,
+  fxChorusMix: 0,
+  fxDelayOn: false,
+  fxDelayTime: 0.35,
+  fxDelayFeedback: 0.3,
+  fxDelayMix: 0,
 };
 
 export function cutoffHz(t: number): number {
@@ -134,6 +185,16 @@ function makeShaper(ctx: AudioContext): WaveShaperNode {
   shaper.curve = curve;
   shaper.oversample = "2x";
   return shaper;
+}
+
+function makeDriveCurve() {
+  const n = 1024;
+  const curve = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1;
+    curve[i] = Math.tanh(x);
+  }
+  return curve;
 }
 
 function makePulseWave(ctx: AudioContext, duty: number): PeriodicWave {
@@ -204,6 +265,27 @@ export class SynthEngine {
   private pitchModGain: GainNode | null = null;
   private filterModGain: GainNode | null = null;
   private a440Osc: OscillatorNode | null = null;
+  // FX section: master → Drive → Chorus → Delay → compressor.
+  private fxDriveIn: GainNode | null = null;
+  private driveDry: GainNode | null = null;
+  private drivePre: GainNode | null = null;
+  private driveShaper: WaveShaperNode | null = null;
+  private driveTone: BiquadFilterNode | null = null;
+  private drivePost: GainNode | null = null;
+  private driveWet: GainNode | null = null;
+  private fxChorusIn: GainNode | null = null;
+  private chorusDry: GainNode | null = null;
+  private chorusDelayA: DelayNode | null = null;
+  private chorusDelayB: DelayNode | null = null;
+  private chorusWet: GainNode | null = null;
+  private chorusLfo: OscillatorNode | null = null;
+  private chorusLfoGainA: GainNode | null = null;
+  private chorusLfoGainB: GainNode | null = null;
+  private fxDelayIn: GainNode | null = null;
+  private delayDry: GainNode | null = null;
+  private delayLine: DelayNode | null = null;
+  private delayFb: GainNode | null = null;
+  private delayWet: GainNode | null = null;
   private a440Gain: GainNode | null = null;
   private pulseWave: PeriodicWave | null = null;
   private dc: ConstantSourceNode | null = null;
@@ -447,7 +529,79 @@ export class SynthEngine {
     this.biquads[3]!.connect(this.ampEnv);
     this.ampEnv.connect(this.vca);
     this.vca.connect(this.master);
-    this.master.connect(this.compressor);
+
+    // FX section: master → Drive → Chorus → Delay → compressor.
+    // Each effect is a dry/wet crossfade; with the effect off (or mix 0)
+    // the dry gain is exactly 1 and the wet gain exactly 0, so the signal
+    // path is bit-identical to the no-FX graph.
+    this.fxDriveIn = ctx.createGain();
+
+    this.driveDry = ctx.createGain();
+    this.drivePre = ctx.createGain();
+    this.driveShaper = ctx.createWaveShaper();
+    this.driveShaper.curve = makeDriveCurve();
+    this.driveShaper.oversample = "2x";
+    this.driveTone = ctx.createBiquadFilter();
+    this.driveTone.type = "highshelf";
+    this.driveTone.frequency.value = DRIVE_TONE_FREQ_HZ;
+    this.drivePost = ctx.createGain();
+    this.driveWet = ctx.createGain();
+
+    this.fxChorusIn = ctx.createGain();
+    this.chorusDry = ctx.createGain();
+    this.chorusDelayA = ctx.createDelay(0.05);
+    this.chorusDelayA.delayTime.value = CHORUS_TAP_A_SEC;
+    this.chorusDelayB = ctx.createDelay(0.05);
+    this.chorusDelayB.delayTime.value = CHORUS_TAP_B_SEC;
+    this.chorusWet = ctx.createGain();
+    this.chorusLfo = ctx.createOscillator();
+    this.chorusLfo.type = "sine";
+    this.chorusLfo.frequency.value = chorusRateHz(this.params.fxChorusRate);
+    this.chorusLfoGainA = ctx.createGain();
+    this.chorusLfoGainA.gain.value = chorusDepthSec(this.params.fxChorusDepth);
+    this.chorusLfoGainB = ctx.createGain();
+    this.chorusLfoGainB.gain.value = -chorusDepthSec(this.params.fxChorusDepth);
+
+    this.fxDelayIn = ctx.createGain();
+    this.delayDry = ctx.createGain();
+    this.delayLine = ctx.createDelay(1.0);
+    this.delayLine.delayTime.value = delayTimeSec(this.params.fxDelayTime);
+    this.delayFb = ctx.createGain();
+    this.delayFb.gain.value = delayFeedbackGain(this.params.fxDelayFeedback);
+    this.delayWet = ctx.createGain();
+
+    this.master.connect(this.fxDriveIn);
+
+    this.fxDriveIn.connect(this.driveDry);
+    this.driveDry.connect(this.fxChorusIn);
+    this.fxDriveIn.connect(this.drivePre);
+    this.drivePre.connect(this.driveShaper);
+    this.driveShaper.connect(this.driveTone);
+    this.driveTone.connect(this.drivePost);
+    this.drivePost.connect(this.driveWet);
+    this.driveWet.connect(this.fxChorusIn);
+
+    this.fxChorusIn.connect(this.chorusDry);
+    this.chorusDry.connect(this.fxDelayIn);
+    this.fxChorusIn.connect(this.chorusDelayA);
+    this.chorusDelayA.connect(this.chorusWet);
+    this.fxChorusIn.connect(this.chorusDelayB);
+    this.chorusDelayB.connect(this.chorusWet);
+    this.chorusWet.connect(this.fxDelayIn);
+    this.chorusLfo.connect(this.chorusLfoGainA);
+    this.chorusLfoGainA.connect(this.chorusDelayA.delayTime);
+    this.chorusLfo.connect(this.chorusLfoGainB);
+    this.chorusLfoGainB.connect(this.chorusDelayB.delayTime);
+    this.chorusLfo.start();
+
+    this.fxDelayIn.connect(this.delayDry);
+    this.delayDry.connect(this.compressor);
+    this.fxDelayIn.connect(this.delayLine);
+    this.delayLine.connect(this.delayFb);
+    this.delayFb.connect(this.delayLine);
+    this.delayLine.connect(this.delayWet);
+    this.delayWet.connect(this.compressor);
+
     this.compressor.connect(this.analyser);
     this.analyser.connect(ctx.destination);
 
@@ -651,7 +805,41 @@ export class SynthEngine {
     }
 
     this.setCutoff(this.trackedCutoff(), now, 0.03);
+    this.applyFxParams(p, now);
     this.setPitch(this.lastMidi, false);
+  }
+
+  /** Apply the FX section params. Dry/wet crossfades; effects off → dry only. */
+  private applyFxParams(p: SynthParams, now: number): void {
+    const set = (node: AudioParam | null | undefined, value: number, tau = 0.02) => {
+      node?.setTargetAtTime(value, now, tau);
+    };
+
+    // Drive
+    const driveWet = p.fxDriveOn ? 1 : 0;
+    set(this.driveDry?.gain, 1 - driveWet);
+    set(this.driveWet?.gain, driveWet);
+    set(this.drivePre?.gain, drivePregain(p.fxDriveAmount));
+    set(this.driveTone?.gain, driveToneDb(p.fxDriveTone));
+    set(this.drivePost?.gain, driveLevelGain(p.fxDriveLevel));
+
+    // Chorus
+    const chorusWet = p.fxChorusOn ? p.fxChorusMix : 0;
+    set(this.chorusDry?.gain, 1 - chorusWet);
+    set(this.chorusWet?.gain, chorusWet);
+    const depth = chorusDepthSec(p.fxChorusDepth);
+    set(this.chorusLfo?.frequency, chorusRateHz(p.fxChorusRate));
+    set(this.chorusLfoGainA?.gain, depth);
+    set(this.chorusLfoGainB?.gain, -depth);
+    set(this.chorusDelayA?.delayTime, CHORUS_TAP_A_SEC);
+    set(this.chorusDelayB?.delayTime, CHORUS_TAP_B_SEC);
+
+    // Delay
+    const delayWet = p.fxDelayOn ? p.fxDelayMix : 0;
+    set(this.delayDry?.gain, 1 - delayWet);
+    set(this.delayWet?.gain, delayWet);
+    set(this.delayLine?.delayTime, delayTimeSec(p.fxDelayTime));
+    set(this.delayFb?.gain, delayFeedbackGain(p.fxDelayFeedback));
   }
 
   private setMix(node: GainNode | null | undefined, value: number): void {

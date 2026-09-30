@@ -8,7 +8,7 @@ import {
   writeUserPatch,
   type PatchStorage,
 } from "./patch-storage.ts";
-import type { SynthParams } from "./engine.ts";
+import { DEFAULT_PARAMS, type SynthParams } from "./engine.ts";
 
 function memoryStorage(): PatchStorage {
   const entries = new Map<string, string>();
@@ -104,6 +104,7 @@ test("patches saved before velocity existed still validate and load as legacy", 
 test("velocity amount survives a user-patch save round-trip", () => {
   const storage = memoryStorage();
   const patch: SynthParams = {
+    ...DEFAULT_PARAMS,
     osc1Wave: "sawtooth",
     osc1Footage: "8",
     osc2Wave: "sawtooth",
