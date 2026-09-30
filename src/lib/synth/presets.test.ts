@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { copySynthParams, isSynthParams, parseUserPatchFile, serializeUserPatchFile, type PatchStorage, readUserPatches, writeUserPatch, writeUserPatches } from "./patch-storage.ts";
-import type { SynthParams } from "./engine.ts";
+import { DEFAULT_PARAMS, type SynthParams } from "./engine.ts";
 import { formatVibratoRate, vibratoGainHz, vibratoRateHz } from "./modulation.ts";
 
 function memoryStorage(): PatchStorage {
@@ -16,6 +16,7 @@ function memoryStorage(): PatchStorage {
 
 function validPatch(): SynthParams {
   return {
+    ...DEFAULT_PARAMS,
     osc1Wave: "sawtooth",
     osc1Footage: "8",
     osc2Wave: "triangle",

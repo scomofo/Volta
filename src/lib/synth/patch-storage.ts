@@ -1,4 +1,4 @@
-import type { SynthParams } from "./engine";
+import { DEFAULT_PARAMS, type SynthParams } from "./engine.ts";
 
 export const USER_PATCH_COUNT = 4;
 const USER_PATCH_STORAGE_KEY = "volta.user-patches.v1";
@@ -13,6 +13,27 @@ const PARAMETER_KEYS: readonly (keyof SynthParams)[] = [
   "filterSustain", "filterTrack", "ampAttack", "ampDecay", "ampSustain",
   "glide", "vibratoRate", "vibratoDepth", "pitchMod", "filterMod", "velocity", "volume",
   "tune", "a440",
+  "fxDriveOn", "fxDriveAmount", "fxDriveTone", "fxDriveLevel",
+  "fxChorusOn", "fxChorusRate", "fxChorusDepth", "fxChorusMix",
+  "fxDelayOn", "fxDelayTime", "fxDelayFeedback", "fxDelayMix",
+];
+
+/** Numeric FX keys. Added to NUMERIC_KEYS so knobs can MIDI-learn them. */
+const FX_NUMERIC_KEYS: readonly (keyof SynthParams)[] = [
+  "fxDriveAmount", "fxDriveTone", "fxDriveLevel",
+  "fxChorusRate", "fxChorusDepth", "fxChorusMix",
+  "fxDelayTime", "fxDelayFeedback", "fxDelayMix",
+];
+
+/**
+ * Keys added after earlier patch formats: patches saved before the FX
+ * section (or before velocity) existed stay valid and load with defaults.
+ */
+const LEGACY_OPTIONAL_KEYS: readonly (keyof SynthParams)[] = [
+  "velocity",
+  "fxDriveOn", "fxDriveAmount", "fxDriveTone", "fxDriveLevel",
+  "fxChorusOn", "fxChorusRate", "fxChorusDepth", "fxChorusMix",
+  "fxDelayOn", "fxDelayTime", "fxDelayFeedback", "fxDelayMix",
 ];
 
 const NUMERIC_KEYS: readonly (keyof SynthParams)[] = [
@@ -20,6 +41,7 @@ const NUMERIC_KEYS: readonly (keyof SynthParams)[] = [
   "swarmLock", "cutoff", "emphasis", "contour", "filterAttack", "filterDecay",
   "filterSustain", "filterTrack", "ampAttack", "ampDecay", "ampSustain",
   "glide", "vibratoRate", "vibratoDepth", "pitchMod", "filterMod", "velocity", "volume", "tune",
+  ...FX_NUMERIC_KEYS,
 ];
 
 /** Numeric params a MIDI CC can be learned to. */
@@ -33,8 +55,9 @@ export function emptyUserPatches(): Array<SynthParams | null> {
 
 export function copySynthParams(params: SynthParams): SynthParams {
   const entries = PARAMETER_KEYS.map((key) => {
-    // Patches saved before velocity existed load as 0 = legacy behavior.
-    const value = key === "velocity" && params[key] === undefined ? 0 : params[key];
+    // Keys added after the patch was saved (velocity, the FX section) fall
+    // back to the default, which reproduces the legacy behavior (off).
+    const value = params[key] === undefined ? DEFAULT_PARAMS[key] : params[key];
     return [key, value] as const;
   });
   return Object.fromEntries(entries) as unknown as SynthParams;
@@ -47,12 +70,14 @@ export function isSynthParams(value: unknown): value is SynthParams {
   const footages = ["32", "16", "8", "4", "2", "LO"];
   for (const key of NUMERIC_KEYS) {
     const parameter = candidate[key];
-    // velocity is optional: patches saved before it existed stay valid.
-    if (key === "velocity" && parameter === undefined) continue;
+    // Keys added after the patch was saved stay valid when absent.
+    if (parameter === undefined && LEGACY_OPTIONAL_KEYS.includes(key)) continue;
     if (typeof parameter !== "number" || !Number.isFinite(parameter) || parameter < 0 || parameter > 1) {
       return false;
     }
   }
+  const optionalBoolean = (key: string) =>
+    typeof candidate[key] === "boolean" || candidate[key] === undefined;
   return (
     waves.includes(candidate.osc1Wave as string) &&
     waves.includes(candidate.osc2Wave as string) &&
@@ -61,7 +86,10 @@ export function isSynthParams(value: unknown): value is SynthParams {
     footages.includes(candidate.osc2Footage as string) &&
     footages.includes(candidate.osc3Footage as string) &&
     typeof candidate.osc3Follow === "boolean" &&
-    typeof candidate.a440 === "boolean"
+    typeof candidate.a440 === "boolean" &&
+    optionalBoolean("fxDriveOn") &&
+    optionalBoolean("fxChorusOn") &&
+    optionalBoolean("fxDelayOn")
   );
 }
 
