@@ -3,6 +3,4 @@ node_modules/
 .github_repo
 .env
 .env.*
-
-.vercel/
-screenshots/
+.grok/dev-port

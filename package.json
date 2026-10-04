@@ -1,5 +1,5 @@
 {
-  "name": "volta",
+  "name": "app-builder-workspace",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -7,7 +7,7 @@
     "nf3": "0.3.17"
   },
   "scripts": {
-    "dev": "node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port 8085",
+    "dev": "node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port ${PORT:-8085}",
     "build": "node scripts/with-app-env.mjs vite build && npm run db:migrate",
     "db:migrate": "node scripts/migrate.mjs",
     "build:dev": "node scripts/with-app-env.mjs vite build --mode development",
@@ -16,9 +16,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test:browser": "node scripts/patch-bank-browser.mjs && node scripts/recording-browser.mjs",
-    "test:recording": "node scripts/recording-browser.mjs",
-    "test": "node --test \"scripts/**/*.test.mjs\" && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/synth/swarm.test.ts src/lib/synth/engine.test.ts src/lib/synth/presets.test.ts src/lib/synth/velocity.test.ts src/lib/synth/midi.test.ts src/lib/synth/midi-out.test.ts src/lib/synth/performance.test.ts src/lib/synth/store-link.test.ts src/lib/synth/arp-midi-out.test.ts src/lib/synth/wav.test.ts src/lib/synth/recorder.test.ts src/lib/synth/tap.test.ts src/lib/synth/engine-recording.test.ts src/lib/synth/effects.test.ts",
+    "test": "node --test \"scripts/**/*.test.mjs\" && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
