@@ -20,7 +20,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - name: Verify patch banks and recording in production Chromium
+      - name: Verify patch banks, recording, and Effects layout in production Chromium
         run: |
           npm run preview:restart
           npm run test:browser
@@ -32,5 +32,6 @@ jobs:
           path: |
             screenshots/patch-bank/
             screenshots/recording/
+            screenshots/effects/
           if-no-files-found: ignore
           retention-days: 7
