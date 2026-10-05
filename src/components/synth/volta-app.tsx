@@ -703,7 +703,6 @@ export function VoltaApp() {
                   </div>
                 </div>
               </div>
-            </div>
 
               <div className="silk-rule hidden self-stretch sm:block" />
 
@@ -802,6 +801,7 @@ export function VoltaApp() {
                   </FxColumn>
                 </div>
               </div>
+            </div>
           </div>
           </div>
 
